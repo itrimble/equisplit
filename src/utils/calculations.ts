@@ -23,10 +23,13 @@ export function calculatePropertyDivision(input: CalculationInput): PropertyDivi
 
 /**
  * Community Property Calculation (9 states)
- * General rule: 50/50 split of community property
+ * General rule: 50/50 split of community property.
+ * This function also includes specific logic for Texas regarding income/appreciation
+ * from separate property, which can be treated as community property.
+ * Note: This implementation does not yet handle complex reimbursements or tracing.
  */
 function calculateCommunityProperty(input: CalculationInput): PropertyDivision {
-  const { assets, debts, marriageInfo } = input;
+  const { assets, debts, marriageInfo, jurisdiction } = input;
   
   const assetDivisions: AssetDivision[] = [];
   const debtDivisions: DebtDivision[] = [];
@@ -34,53 +37,167 @@ function calculateCommunityProperty(input: CalculationInput): PropertyDivision {
   let totalCommunityAssets = 0;
   let totalSeparateAssetsSpouse1 = 0;
   let totalSeparateAssetsSpouse2 = 0;
-  
-  // Process assets
+
+  /**
+   * Calculates Appreciation During Marriage (ADM) for a separate property asset.
+   * @param asset The asset to calculate ADM for.
+   * @param marrDate The date of marriage.
+   * @param sepDate Optional date of separation.
+   * @returns The calculated appreciation during marriage, or 0 if not applicable/calculable.
+   *
+   * SIMPLIFICATION: This is a simplified ADM calculation. It assumes appreciation is linear
+   * and does not account for specific market fluctuations, contributions, or complex tracing
+   * that might be required in a detailed legal analysis. It primarily considers the difference
+   * between current value and acquisition value.
+   */
+  const calculateADM = (asset: Asset, marrDate: Date, sepDate?: Date): number => {
+    // ADM is only relevant for separate property with known acquisition value and date.
+    if (!asset.isSeparateProperty || typeof asset.acquisitionValue !== 'number' || !asset.acquisitionDate) {
+      return 0;
+    }
+    // const acquisitionDate = new Date(asset.acquisitionDate); // Date conversion already happens in form/type
+    // const marriageStartDate = new Date(marrDate);
+
+    // Simplified ADM: current value minus acquisition value.
+    // This does not perfectly isolate appreciation strictly "during" the marriage period
+    // if the asset was acquired long before the marriage and the marriage was short,
+    // or if acquired mid-marriage. This is a known simplification.
+    // The primary purpose here is to capture the growth of separate property value.
+    let appreciation = 0;
+    if (asset.acquisitionValue < asset.currentValue) { // Only consider positive appreciation
+        appreciation = asset.currentValue - asset.acquisitionValue;
+    }
+    return appreciation > 0 ? appreciation : 0;
+  };
+
   assets.forEach(asset => {
-    const division = calculateAssetDivision(asset, input);
-    assetDivisions.push(division);
-    
     if (asset.isSeparateProperty) {
-      // Assume assets belong to user (spouse1) unless specified otherwise
-      totalSeparateAssetsSpouse1 += asset.currentValue;
-    } else {
+      // Start by assuming the full current value is separate property.
+      let separatePropertyValue = asset.currentValue;
+      // This will hold any portion of the separate property's appreciation/income
+      // that is treated as community property (e.g., under Texas rules).
+      let communityPortionFromSP = 0;
+      // Best guess for the original value of the separate property corpus.
+      // If acquisitionValue is unknown, current value is used, implying no calculable appreciation for ADM.
+      // let initialSeparateCorpus = asset.acquisitionValue != null ? asset.acquisitionValue : asset.currentValue;
+
+      let reasoning = `Separate property`; // Base reasoning for the asset division.
+
+      // Texas-specific rule: Income and appreciation from separate property can be community property.
+      if (jurisdiction === 'TX') {
+        const adm = calculateADM(asset, marriageInfo.marriageDate, marriageInfo.separationDate);
+        // Only apply ADM if it's positive and there's a basis (acquisitionValue) to calculate from.
+        if (adm > 0 && asset.acquisitionValue != null) {
+          communityPortionFromSP = adm;
+          totalCommunityAssets += communityPortionFromSP; // Add the community portion to total community assets.
+
+          // The original corpus (acquisition value) of the separate property remains separate.
+          separatePropertyValue = asset.acquisitionValue;
+          reasoning += ` (Texas rule: appreciation/income of ${communityPortionFromSP} treated as community)`;
+        } else if (adm > 0 && asset.acquisitionValue == null) {
+            // If ADM is positive but no acquisition value, we can't determine the separate corpus vs. community appreciation.
+            // Asset remains fully separate by default in this simplified model.
+            reasoning += ` (Texas rule: appreciation could not be determined due to missing acquisition value, treated as fully separate)`;
+            // separatePropertyValue remains asset.currentValue
+        }
+      }
+
+      // Determine ownership of the separate property portion.
+      // Defaults to 'spouse1' if not specified (forms should ensure this is set).
+      const owner = asset.ownedBy || 'spouse1';
+      if (owner === 'spouse1') {
+        totalSeparateAssetsSpouse1 += separatePropertyValue;
+        // Append Texas rule details if applicable, otherwise just state it's SP of Spouse 1.
+        reasoning = `Separate property of Spouse 1` + (reasoning.startsWith(" (Texas rule:") ? reasoning : "");
+      } else if (owner === 'spouse2') {
+        totalSeparateAssetsSpouse2 += separatePropertyValue;
+        reasoning = `Separate property of Spouse 2` + (reasoning.startsWith(" (Texas rule:") ? reasoning : "");
+      } else {
+        // Fallback for unclear ownership - should be prevented by form validation.
+        console.warn(`Separate asset ${asset.description || asset.id} has unclear ownership, defaulting to Spouse 1.`);
+        totalSeparateAssetsSpouse1 += separatePropertyValue;
+        reasoning = `Separate property (unclear owner, defaulted to Spouse 1)` + (reasoning.startsWith(" (Texas rule:") ? reasoning : "");
+      }
+
+      // The asset division includes the separate portion assigned to the owner,
+      // plus half of any community portion (e.g., ADM in Texas).
+      assetDivisions.push({
+        assetId: asset.id,
+        description: asset.description,
+        totalValue: asset.currentValue,
+        spouse1Share: (owner === 'spouse1' ? separatePropertyValue : 0) + (communityPortionFromSP / 2),
+        spouse2Share: (owner === 'spouse2' ? separatePropertyValue : 0) + (communityPortionFromSP / 2),
+        reasoning: reasoning
+      });
+
+    } else { // Standard Community Asset (not separate property)
       totalCommunityAssets += asset.currentValue;
+      const halfValue = asset.currentValue / 2;
+      assetDivisions.push({
+        assetId: asset.id,
+        description: asset.description,
+        totalValue: asset.currentValue,
+        spouse1Share: halfValue,
+        spouse2Share: halfValue,
+        reasoning: 'Community property - equal division'
+      });
     }
   });
   
   let totalCommunityDebts = 0;
   let totalSeparateDebtsSpouse1 = 0;
   let totalSeparateDebtsSpouse2 = 0;
-  
-  // Process debts
+
   debts.forEach(debt => {
-    const division = calculateDebtDivision(debt, input);
-    debtDivisions.push(division);
-    
     if (debt.isSeparateProperty) {
-      totalSeparateDebtsSpouse1 += debt.currentBalance;
+      let reasoning = `Separate debt`;
+      const responsibleParty = debt.responsibility || 'spouse1';
+      if (responsibleParty === 'spouse1') {
+        totalSeparateDebtsSpouse1 += debt.currentBalance;
+        reasoning = `Separate debt of Spouse 1`;
+      } else if (responsibleParty === 'spouse2') {
+        totalSeparateDebtsSpouse2 += debt.currentBalance;
+        reasoning = `Separate debt of Spouse 2`;
+      } else {
+        console.warn(`Separate debt ${debt.description || debt.id} has unclear responsibility, defaulting to Spouse 1.`);
+        totalSeparateDebtsSpouse1 += debt.currentBalance;
+        reasoning = `Separate debt (unclear responsibility, defaulted to Spouse 1)`;
+      }
+      debtDivisions.push({
+        debtId: debt.id,
+        description: debt.description,
+        totalBalance: debt.currentBalance,
+        spouse1Responsibility: responsibleParty === 'spouse1' ? debt.currentBalance : 0,
+        spouse2Responsibility: responsibleParty === 'spouse2' ? debt.currentBalance : 0,
+        reasoning: reasoning
+      });
     } else {
       totalCommunityDebts += debt.currentBalance;
+      const halfBalance = debt.currentBalance / 2;
+      debtDivisions.push({
+        debtId: debt.id,
+        description: debt.description,
+        totalBalance: debt.currentBalance,
+        spouse1Responsibility: halfBalance,
+        spouse2Responsibility: halfBalance,
+        reasoning: 'Community debt - equal responsibility'
+      });
     }
   });
   
-  // Calculate net community estate
   const netCommunityEstate = totalCommunityAssets - totalCommunityDebts;
   const communitySharePerSpouse = netCommunityEstate / 2;
   
-  // Calculate final values
-  const spouse1TotalAssets = communitySharePerSpouse + totalSeparateAssetsSpouse1;
-  const spouse2TotalAssets = communitySharePerSpouse + totalSeparateAssetsSpouse2;
-  const spouse1TotalDebts = (totalCommunityDebts / 2) + totalSeparateDebtsSpouse1;
-  const spouse2TotalDebts = (totalCommunityDebts / 2) + totalSeparateDebtsSpouse2;
+  const finalSpouse1NetValue = (totalSeparateAssetsSpouse1 + communitySharePerSpouse) - (totalSeparateDebtsSpouse1 + (totalCommunityDebts / 2));
+  const finalSpouse2NetValue = (totalSeparateAssetsSpouse2 + communitySharePerSpouse) - (totalSeparateDebtsSpouse2 + (totalCommunityDebts / 2));
   
   return {
-    spouse1Assets: assetDivisions.filter(a => a.spouse1Share > 0),
-    spouse2Assets: assetDivisions.filter(a => a.spouse2Share > 0),
-    spouse1Debts: debtDivisions.filter(d => d.spouse1Responsibility > 0),
-    spouse2Debts: debtDivisions.filter(d => d.spouse2Responsibility > 0),
-    totalSpouse1Value: spouse1TotalAssets - spouse1TotalDebts,
-    totalSpouse2Value: spouse2TotalAssets - spouse2TotalDebts,
+    spouse1Assets: assetDivisions.filter(a => a.spouse1Share !== 0 || (a.totalValue !== 0 && a.spouse1Share === 0 && a.spouse2Share === 0 && (a.reasoning.includes("Spouse 1")))),
+    spouse2Assets: assetDivisions.filter(a => a.spouse2Share !== 0 || (a.totalValue !== 0 && a.spouse1Share === 0 && a.spouse2Share === 0 && (a.reasoning.includes("Spouse 2")))),
+    spouse1Debts: debtDivisions.filter(d => d.spouse1Responsibility !== 0 || (d.totalBalance !== 0 && d.spouse1Responsibility === 0 && d.spouse2Responsibility === 0 && (d.reasoning.includes("Spouse 1")))),
+    spouse2Debts: debtDivisions.filter(d => d.spouse2Responsibility !== 0 || (d.totalBalance !== 0 && d.spouse1Responsibility === 0 && d.spouse2Responsibility === 0 && (d.reasoning.includes("Spouse 2")))),
+    totalSpouse1Value: finalSpouse1NetValue,
+    totalSpouse2Value: finalSpouse2NetValue,
   };
 }
 

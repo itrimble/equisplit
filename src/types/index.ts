@@ -51,6 +51,7 @@ export interface Asset {
   acquisitionDate?: Date;
   acquisitionValue?: number;
   isSeparateProperty: boolean;
+  ownedBy?: 'spouse1' | 'spouse2' | 'joint'; // Added field
   supportingDocuments: string[];
   notes?: string;
   createdAt: Date;
@@ -65,7 +66,8 @@ export interface Debt {
   currentBalance: number;
   originalAmount?: number;
   acquisitionDate?: Date;
-  isSeparateProperty: boolean;
+  isSeparateProperty: boolean; // Name kept for consistency with Asset, though it means separate debt
+  responsibility?: 'spouse1' | 'spouse2' | 'joint'; // Added field
   supportingDocuments: string[];
   notes?: string;
   createdAt: Date;
