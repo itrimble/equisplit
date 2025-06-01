@@ -28,6 +28,7 @@ const realEstatePropertyInHookSchema = z.object({
   isSeparateProperty: z.boolean().default(false),
   ownedBy: z.enum(["joint", "spouse1", "spouse2"]).optional(),
   notes: z.string().optional(),
+  isQuasiCommunityProperty: z.boolean().optional(), // <-- ADD THIS LINE
 }).superRefine((data, ctx) => {
     if (data.isSeparateProperty && !data.ownedBy) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownedBy"], message: "Ownership required." });
@@ -56,6 +57,7 @@ const financialAccountInHookSchema = z.object({
   isSeparateProperty: z.boolean().default(false),
   ownedBy: z.enum(["joint", "spouse1", "spouse2"]).optional(),
   notes: z.string().optional(),
+  isQuasiCommunityProperty: z.boolean().optional(), // <-- ADD THIS LINE
 }).superRefine((data, ctx) => {
     if (data.isSeparateProperty && !data.ownedBy) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownedBy"], message: "Ownership required." });
@@ -75,6 +77,7 @@ const commonPersonalPropertyInHookSchemaBase = z.object({
   isSeparateProperty: z.boolean().default(false),
   ownedBy: z.enum(["joint", "spouse1", "spouse2"]).optional(),
   notes: z.string().optional(),
+  isQuasiCommunityProperty: z.boolean().optional(), // <-- ADD THIS LINE
 });
 const commonPersonalPropertyInHookSchema = commonPersonalPropertyInHookSchemaBase.superRefine((data, ctx) => {
   if (data.isSeparateProperty && !data.ownedBy) {

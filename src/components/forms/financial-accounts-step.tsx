@@ -47,6 +47,7 @@ const financialAccountSchema = z.object({
   isSeparateProperty: z.boolean().default(false),
   ownedBy: z.enum(["joint", "spouse1", "spouse2"]).optional(),
   notes: z.string().optional(),
+  isQuasiCommunityProperty: z.boolean().default(false), // <-- ADD THIS LINE
 })
 .superRefine((data, ctx) => {
   if (data.isSeparateProperty && !data.ownedBy) {
@@ -182,6 +183,7 @@ export function FinancialAccountsStep({ data, onUpdate }: FinancialAccountsStepP
       currentBalance: '',
       isSeparateProperty: false,
       ownedBy: 'joint',
+      isQuasiCommunityProperty: false, // <-- ADD THIS LINE
       notes: '',
     });
   };
@@ -330,6 +332,31 @@ export function FinancialAccountsStep({ data, onUpdate }: FinancialAccountsStepP
                     fieldIndex={index}
                     errors={errors.financialAccounts?.[index]}
                   />
+
+                  {/* QCP Switch */}
+                  <div className="space-y-1 pt-3">
+                    <div className="flex items-center space-x-3">
+                      <Controller
+                        name={`financialAccounts.${index}.isQuasiCommunityProperty`}
+                        control={control}
+                        defaultValue={false}
+                        render={({ field }) => (
+                          <Switch
+                            id={`financialAccounts.${index}.isQuasiCommunityProperty`}
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            aria-labelledby={`qcp-financial-label-${index}`}
+                          />
+                        )}
+                      />
+                      <Label htmlFor={`financialAccounts.${index}.isQuasiCommunityProperty`} id={`qcp-financial-label-${index}`} className="cursor-pointer text-sm font-medium">
+                        Is this Quasi-Community Property?
+                      </Label>
+                    </div>
+                    <p className="text-xs text-gray-500 pl-10">
+                      Applies to property acquired while living out-of-state that would be community property if acquired in this state (e.g., CA, AZ, ID, WA).
+                    </p>
+                  </div>
 
                   {/* Notes */}
                   <div>

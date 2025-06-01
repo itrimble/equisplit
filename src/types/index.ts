@@ -52,6 +52,7 @@ export interface Asset {
   acquisitionValue?: number;
   isSeparateProperty: boolean;
   ownedBy?: 'spouse1' | 'spouse2' | 'joint'; // Added field
+  isQuasiCommunityProperty?: boolean; // <-- Add this line
   supportingDocuments: string[];
   notes?: string;
   createdAt: Date;

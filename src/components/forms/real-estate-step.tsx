@@ -44,6 +44,7 @@ const realEstatePropertySchema = z.object({
   isSeparateProperty: z.boolean().default(false),
   ownedBy: z.enum(["joint", "spouse1", "spouse2"]).optional(),
   notes: z.string().optional(),
+  isQuasiCommunityProperty: z.boolean().default(false), // <-- ADD THIS LINE
 })
 .superRefine((data, ctx) => {
     if (data.isSeparateProperty && !data.ownedBy) {
@@ -188,6 +189,7 @@ export function RealEstateStep({ data, onUpdate }: RealEstateStepProps) {
       mortgageBalance: '',
       isSeparateProperty: false,
       ownedBy: 'joint',
+      isQuasiCommunityProperty: false, // <-- ADD THIS LINE
       notes: '',
     });
   };
@@ -356,6 +358,32 @@ export function RealEstateStep({ data, onUpdate }: RealEstateStepProps) {
                     fieldIndex={index}
                     errors={errors.realEstateProperties?.[index]}
                   />
+
+                  {/* QCP Switch */}
+                  <div className="space-y-1 pt-3"> {/* Adjusted spacing slightly */}
+                    <div className="flex items-center space-x-3"> {/* Increased space between switch and label */}
+                      <Controller
+                        name={`realEstateProperties.${index}.isQuasiCommunityProperty`}
+                        control={control}
+                        defaultValue={false} // Explicit default for Controller
+                        render={({ field }) => (
+                          <Switch
+                            id={`realEstateProperties.${index}.isQuasiCommunityProperty`}
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            aria-labelledby={`qcp-label-${index}`}
+                          />
+                        )}
+                      />
+                      <Label htmlFor={`realEstateProperties.${index}.isQuasiCommunityProperty`} id={`qcp-label-${index}`} className="cursor-pointer text-sm font-medium">
+                        Is this Quasi-Community Property?
+                      </Label>
+                    </div>
+                    <p className="text-xs text-gray-500 pl-10"> {/* Indent help text under switch */}
+                      Applies to property acquired while living out-of-state that would be community property if acquired in this state (e.g., CA, AZ, ID, WA).
+                    </p>
+                    {/* No specific error message needed for a boolean switch usually, unless a complex validation depends on it */}
+                  </div>
 
                   <div>
                     <Label htmlFor={`realEstateProperties.${index}.notes`}>Notes</Label>
