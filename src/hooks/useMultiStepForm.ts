@@ -2,62 +2,77 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { MultiStepFormState, StepFormData } from '@/types';
-import { z } from 'zod'; // Import Zod
+import { z } from 'zod';
 
 // --- Zod Schemas for Validation within the Hook ---
-// Schema for a single real estate property (mirrors the one in RealEstateStep)
+
+// Schema for a single real estate property (from previous step)
 const realEstatePropertyInHookSchema = z.object({
   description: z.string().min(1),
-  propertyType: z.enum([
-    "primary_residence",
-    "rental_property",
-    "vacation_home",
-    "land",
-    "other"
-  ]),
+  propertyType: z.enum(["primary_residence", "rental_property", "vacation_home", "land", "other"]),
   currentValue: z.preprocess(
     (val) => String(val).replace(/[^0-9.-]+/g, ''),
-    z.string().min(1)
-      .refine(val => !isNaN(parseFloat(val)))
-      .refine(val => parseFloat(val) > 0)
+    z.string().min(1).refine(val => !isNaN(parseFloat(val))).refine(val => parseFloat(val) > 0)
   ),
   acquisitionDate: z.string().optional(),
   acquisitionValue: z.preprocess(
     (val) => String(val).replace(/[^0-9.-]+/g, ''),
-    z.string().optional()
-      .refine(val => val === '' || val === undefined || !isNaN(parseFloat(val)))
+    z.string().optional().refine(val => val === '' || val === undefined || !isNaN(parseFloat(val)))
       .refine(val => val === '' || val === undefined || parseFloat(val) > 0)
   ).optional(),
   mortgageBalance: z.preprocess(
     (val) => String(val).replace(/[^0-9.-]+/g, ''),
-    z.string().optional()
-      .refine(val => val === '' || val === undefined || !isNaN(parseFloat(val)))
+    z.string().optional().refine(val => val === '' || val === undefined || !isNaN(parseFloat(val)))
       .refine(val => val === '' || val === undefined || parseFloat(val) >= 0)
   ).optional(),
   isSeparateProperty: z.boolean().default(false),
   ownedBy: z.enum(["joint", "spouse1", "spouse2"]).optional(),
   notes: z.string().optional(),
-})
-.superRefine((data, ctx) => {
+}).superRefine((data, ctx) => {
     if (data.isSeparateProperty && !data.ownedBy) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["ownedBy"],
-        message: "Ownership is required for separate property.", // This message won't be shown in UI from here
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownedBy"], message: "Ownership required." });
     }
 });
-
-// Schema for the entire RealEstateStep's data
 const realEstateStepInHookSchema = z.object({
   realEstateProperties: z.array(realEstatePropertyInHookSchema).optional(),
 });
+
+// **NEW**: Schemas for Financial Accounts Step
+const accountTypeInHookEnum = z.enum([
+  "checking", "savings", "money_market", "cd", "brokerage_taxable",
+  "retirement_401k_403b", "retirement_ira_roth", "retirement_pension",
+  "crypto", "cash_value_life_insurance", "hsa", "other_financial"
+]);
+
+const financialAccountInHookSchema = z.object({
+  accountType: accountTypeInHookEnum,
+  institutionName: z.string().min(1),
+  accountNickname: z.string().optional(),
+  accountNumberLast4: z.string().length(4).regex(/^\d{4}$/).optional().or(z.literal('')),
+  currentBalance: z.preprocess(
+    (val) => String(val).replace(/[^0-9.-]+/g, ''),
+    z.string().min(1).refine(val => !isNaN(parseFloat(val)))
+      .refine(val => parseFloat(val) >= 0) // Simplified: balance >= 0
+  ),
+  isSeparateProperty: z.boolean().default(false),
+  ownedBy: z.enum(["joint", "spouse1", "spouse2"]).optional(),
+  notes: z.string().optional(),
+}).superRefine((data, ctx) => {
+    if (data.isSeparateProperty && !data.ownedBy) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownedBy"], message: "Ownership required." });
+    }
+});
+
+const financialAccountsStepInHookSchema = z.object({
+  financialAccounts: z.array(financialAccountInHookSchema).optional(),
+});
+// **END NEW SCHEMAS**
 
 
 export interface UseMultiStepFormProps {
   totalSteps: number;
   onSave?: (data: MultiStepFormState) => void;
-  autoSaveInterval?: number; // milliseconds
+  autoSaveInterval?: number;
   storageKey?: string;
 }
 
@@ -80,9 +95,35 @@ export function useMultiStepForm({
       steps: initialSteps,
       isValid: false,
       canProceed: false,
-      lastSaved: undefined, // Initialize lastSaved
+      lastSaved: undefined,
     };
   });
+
+  const validateStepData = useCallback((stepNumber: number, stepData: Record<string, any>): boolean => {
+    switch (stepNumber) {
+      case 1: // Personal Information
+        return !!(stepData.firstName && stepData.lastName && stepData.marriageDate && stepData.jurisdiction);
+      case 2: // Real Estate Assets
+        if (!stepData.realEstateProperties || stepData.realEstateProperties.length === 0) {
+          return true;
+        }
+        const realEstateValidation = realEstateStepInHookSchema.safeParse(stepData);
+        return realEstateValidation.success;
+      case 3: // **NEW** Financial Accounts
+        if (!stepData.financialAccounts || stepData.financialAccounts.length === 0) {
+          return true;
+        }
+        const financialAccountsValidation = financialAccountsStepInHookSchema.safeParse(stepData);
+        return financialAccountsValidation.success;
+      // Steps 4-6 are still placeholders for validation
+      case 4: return true;
+      case 5: return true;
+      case 6: return true;
+      default:
+        return true;
+    }
+  }, []); // Empty dependency array as schemas are defined in scope
+
 
   useEffect(() => {
     if (typeof window !== 'undefined' && storageKey) {
@@ -90,8 +131,6 @@ export function useMultiStepForm({
         const saved = localStorage.getItem(storageKey);
         if (saved) {
           const parsedData = JSON.parse(saved) as Partial<MultiStepFormState>;
-
-          // Ensure steps array is correctly initialized if missing from saved data
           const currentSteps = parsedData.steps && parsedData.steps.length === totalSteps
             ? parsedData.steps.map(step => ({
                 ...step,
@@ -99,12 +138,11 @@ export function useMultiStepForm({
               }))
             : Array.from({ length: totalSteps }, (_, index) => ({
                 step: index + 1,
-                isComplete: false, // Default to false, will be re-validated
+                isComplete: false,
                 data: {},
                 lastUpdated: new Date()
               }));
 
-          // Re-validate completion status for all steps based on loaded data
           const validatedSteps = currentSteps.map(step => ({
             ...step,
             isComplete: validateStepData(step.step, step.data)
@@ -116,8 +154,7 @@ export function useMultiStepForm({
             steps: validatedSteps,
             currentStep: parsedData.currentStep || 1,
             lastSaved: parsedData.lastSaved ? new Date(parsedData.lastSaved) : undefined,
-            // Recalculate canProceed and isValid based on re-validated steps
-            canProceed: validatedSteps[ (parsedData.currentStep || 1) - 1]?.isComplete || false,
+            canProceed: validatedSteps[(parsedData.currentStep || 1) - 1]?.isComplete || false,
             isValid: validatedSteps.every(step => step.isComplete)
           }));
         }
@@ -126,7 +163,7 @@ export function useMultiStepForm({
         localStorage.removeItem(storageKey);
       }
     }
-  }, [storageKey, totalSteps]); // Added totalSteps dependency
+  }, [storageKey, totalSteps, validateStepData]); // Added validateStepData
 
   useEffect(() => {
     if (autoSaveInterval && storageKey) {
@@ -144,27 +181,6 @@ export function useMultiStepForm({
     }
   }, [formState, autoSaveInterval, storageKey]);
 
-  const validateStepData = useCallback((stepNumber: number, stepData: Record<string, any>): boolean => {
-    switch (stepNumber) {
-      case 1: // Personal Information
-        return !!(stepData.firstName && stepData.lastName && stepData.marriageDate && stepData.jurisdiction);
-      case 2: // Real Estate Assets
-        // If realEstateProperties is not present or is an empty array, it's valid (user has none)
-        if (!stepData.realEstateProperties || stepData.realEstateProperties.length === 0) {
-          return true;
-        }
-        // If there are properties, validate them
-        const validationResult = realEstateStepInHookSchema.safeParse(stepData);
-        return validationResult.success;
-      // Steps 3-6 are still placeholders for validation
-      case 3: return true;
-      case 4: return true;
-      case 5: return true;
-      case 6: return true;
-      default:
-        return true; // Default to true for any other steps not explicitly handled
-    }
-  }, []); // Empty dependency array as schemas are defined in scope
 
   const updateStepData = useCallback((stepNumber: number, newData: Record<string, any>) => {
     setFormState(prev => {
@@ -172,7 +188,6 @@ export function useMultiStepForm({
       const stepIndex = stepNumber - 1;
       
       if (stepIndex >= 0 && stepIndex < newSteps.length) {
-        // Merge new data with existing data for the step
         const updatedStepData = { ...newSteps[stepIndex].data, ...newData };
         newSteps[stepIndex] = {
           ...newSteps[stepIndex],
@@ -203,22 +218,21 @@ export function useMultiStepForm({
   const goToStep = useCallback((stepNumber: number) => {
     if (stepNumber >= 1 && stepNumber <= totalSteps) {
         const targetStepIndex = stepNumber - 1;
-        // Only allow navigation if the target step is accessible
-        // (current, previous, or next if current is complete, or any step if already completed)
         if (stepNumber < formState.currentStep ||
             formState.steps[targetStepIndex]?.isComplete ||
-            canNavigateToStep(stepNumber)) {
+            (stepNumber === formState.currentStep + 1 && formState.steps[formState.currentStep - 1]?.isComplete) || // Direct next step
+            (stepNumber > formState.currentStep + 1 && formState.steps.slice(formState.currentStep -1, targetStepIndex).every(s => s.isComplete)) // Future steps if intermediates are complete
+            ) {
             setFormState(prev => ({
                 ...prev,
                 currentStep: stepNumber,
-                // Update canProceed based on the new current step's completeness
                 canProceed: prev.steps[targetStepIndex]?.isComplete || false,
             }));
         } else {
-            console.warn(`Navigation to step ${stepNumber} blocked or step not yet reachable.`);
+            // console.warn(`Navigation to step ${stepNumber} blocked.`);
         }
     }
-  }, [totalSteps, formState.currentStep, formState.steps]); // Removed canNavigateToStep from deps to avoid loop
+  }, [totalSteps, formState.currentStep, formState.steps]);
 
   const nextStep = useCallback(() => {
     setFormState(prev => {
@@ -230,7 +244,7 @@ export function useMultiStepForm({
           canProceed: prev.steps[newCurrentStep - 1]?.isComplete || false,
         };
       }
-      return prev; // If current step not complete or already last step, don't change
+      return prev;
     });
   }, [totalSteps]);
 
@@ -241,9 +255,6 @@ export function useMultiStepForm({
         return {
           ...prev,
           currentStep: newCurrentStep,
-          // Previous step is always considered proceedable for "Next" button logic
-          // as its own completeness was already met to get there.
-          // The canProceed here refers to the new current step's own data.
           canProceed: prev.steps[newCurrentStep - 1]?.isComplete || false,
         };
       }
@@ -263,7 +274,7 @@ export function useMultiStepForm({
       totalSteps,
       steps: initialSteps,
       isValid: false,
-      canProceed: false, // Step 1 personal info is not complete by default
+      canProceed: false,
       lastSaved: undefined,
     };
     setFormState(resetState);
@@ -278,8 +289,6 @@ export function useMultiStepForm({
 
   const getAllData = useCallback(() => {
     return formState.steps.reduce((acc, step) => {
-      // Only include data from completed steps for "getAllData" if desired,
-      // or all data regardless of completion. For now, all data.
       return { ...acc, ...step.data };
     }, {});
   }, [formState.steps]);
@@ -290,23 +299,15 @@ export function useMultiStepForm({
   }, [formState.steps, totalSteps]);
 
   const canNavigateToStep = useCallback((stepNumber: number): boolean => {
-    if (stepNumber === formState.currentStep) return true; // Can always "navigate" to current
-    // Can navigate to any previous step
+    if (stepNumber === formState.currentStep) return true;
     if (stepNumber < formState.currentStep) return true;
-    // Can navigate to next step if current is complete
-    if (stepNumber === formState.currentStep + 1 && formState.steps[formState.currentStep - 1]?.isComplete) {
-        return true;
-    }
-    // If there are more steps ahead, check if all intermediate steps are complete
-    if (stepNumber > formState.currentStep + 1) {
-        for (let i = formState.currentStep -1; i < stepNumber -1; i++) {
-            if (!formState.steps[i]?.isComplete) return false;
-        }
-        return true;
-    }
-    return false;
-  }, [formState.currentStep, formState.steps]);
 
+    // Check if all steps from current up to (but not including) target stepNumber are complete
+    for (let i = formState.currentStep -1; i < stepNumber -1; i++) {
+        if (!formState.steps[i]?.isComplete) return false;
+    }
+    return true;
+  }, [formState.currentStep, formState.steps]);
 
   return {
     formState,
