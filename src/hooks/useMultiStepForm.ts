@@ -65,9 +65,8 @@ const financialAccountsStepInHookSchema = z.object({
   financialAccounts: z.array(financialAccountInHookSchema).optional(),
 });
 
-// **NEW**: Schemas for Personal Property Step (Step 4)
+// Schemas for Personal Property Step (Step 4)
 const commonPersonalPropertyInHookSchemaBase = z.object({
-  // id: z.string().optional(), // Not needed for validation logic itself
   description: z.string().min(1),
   currentValue: z.preprocess(
     (val) => String(val).replace(/[^0-9.-]+/g, ''),
@@ -82,7 +81,6 @@ const commonPersonalPropertyInHookSchema = commonPersonalPropertyInHookSchemaBas
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownedBy"], message: "Ownership required." });
   }
 });
-
 const vehiclePropertyInHookSchema = commonPersonalPropertyInHookSchema.extend({
   itemCategory: z.literal("vehicle"),
   vehicleMake: z.string().min(1),
@@ -93,27 +91,51 @@ const vehiclePropertyInHookSchema = commonPersonalPropertyInHookSchema.extend({
   ),
   vinLast6: z.string().length(6).regex(/^[a-zA-Z0-9]{6}$/).optional().or(z.literal('')),
 });
-
-const OTHER_PROPERTY_CATEGORIES_IN_HOOK = [
-  "jewelry", "electronics", "furniture", "art_collectibles", "other_valuables"
-] as const;
-
+const OTHER_PROPERTY_CATEGORIES_IN_HOOK = ["jewelry", "electronics", "furniture", "art_collectibles", "other_valuables"] as const;
 const otherPersonalPropertyInHookSchema = commonPersonalPropertyInHookSchema.extend({
   itemCategory: z.enum(OTHER_PROPERTY_CATEGORIES_IN_HOOK),
 });
-
 const personalPropertyItemInHookSchema = z.discriminatedUnion("itemCategory", [
   vehiclePropertyInHookSchema,
   otherPersonalPropertyInHookSchema,
 ]);
-
 const personalPropertyStepInHookSchema = z.object({
   personalProperties: z.array(personalPropertyItemInHookSchema).optional(),
 });
-// **END NEW SCHEMAS FOR STEP 4**
+
+// **NEW**: Schemas for Debts Step (Step 5)
+const debtTypeInHookEnum = z.enum([
+  "mortgage", "heloc", "vehicle_loan", "student_loan", "credit_card",
+  "personal_loan", "medical_debt", "tax_debt", "alimony_arrears",
+  "child_support_arrears", "business_debt", "other_debt"
+]);
+
+const debtItemInHookSchema = z.object({
+  debtType: debtTypeInHookEnum,
+  creditorName: z.string().min(1),
+  accountNickname: z.string().optional(),
+  accountNumberLast4: z.string().length(4).regex(/^\d{4}$/).optional().or(z.literal('')),
+  currentBalance: z.preprocess(
+    (val) => String(val).replace(/[^0-9.-]+/g, ''),
+    z.string().min(1).refine(val => !isNaN(parseFloat(val))).refine(val => parseFloat(val) > 0) // Debts are positive amounts
+  ),
+  isSeparateDebt: z.boolean().default(false),
+  responsibility: z.enum(["joint", "spouse1", "spouse2"]).optional(),
+  notes: z.string().optional(),
+}).superRefine((data, ctx) => {
+    if (data.isSeparateDebt && !data.responsibility) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["responsibility"], message: "Responsibility required for separate debt." });
+    }
+});
+
+const debtsStepInHookSchema = z.object({
+  debts: z.array(debtItemInHookSchema).optional(),
+});
+// **END NEW SCHEMAS FOR STEP 5**
 
 
 export interface UseMultiStepFormProps {
+  // ... (props remain the same)
   totalSteps: number;
   onSave?: (data: MultiStepFormState) => void;
   autoSaveInterval?: number;
@@ -121,6 +143,7 @@ export interface UseMultiStepFormProps {
 }
 
 export function useMultiStepForm({
+  // ... (hook setup remains the same)
   totalSteps,
   onSave,
   autoSaveInterval = 30000,
@@ -154,20 +177,20 @@ export function useMultiStepForm({
       case 3: // Financial Accounts
         if (!stepData.financialAccounts || stepData.financialAccounts.length === 0) return true;
         return financialAccountsStepInHookSchema.safeParse(stepData).success;
-      case 4: // **NEW** Personal Property & Vehicles
-        if (!stepData.personalProperties || stepData.personalProperties.length === 0) {
-          return true; // Valid if no items are entered
+      case 4: // Personal Property & Vehicles
+        if (!stepData.personalProperties || stepData.personalProperties.length === 0) return true;
+        return personalPropertyStepInHookSchema.safeParse(stepData).success;
+      case 5: // **NEW** Debts & Liabilities
+        if (!stepData.debts || stepData.debts.length === 0) {
+          return true; // Valid if no debts are entered
         }
-        // Validate the array of personal properties using the discriminated union schema
-        const personalPropertyValidation = personalPropertyStepInHookSchema.safeParse(stepData);
-        return personalPropertyValidation.success;
-      // Steps 5-6 are still placeholders for validation
-      case 5: return true;
-      case 6: return true;
+        const debtsValidation = debtsStepInHookSchema.safeParse(stepData);
+        return debtsValidation.success;
+      case 6: return true; // SpecialCircumstances - still placeholder validation
       default:
         return true;
     }
-  }, []);
+  }, []); // Schemas are defined in the hook's scope, so no external deps needed for validateStepData itself
 
 
   // ... (useEffect for loading from storage remains the same - it uses validateStepData)
