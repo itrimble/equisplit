@@ -234,17 +234,40 @@ export interface EquitableDistributionFactors {
   marriageDuration: number; // years
   ageSpouse1: number;
   ageSpouse2: number;
-  healthSpouse1: 'excellent' | 'good' | 'fair' | 'poor';
-  healthSpouse2: 'excellent' | 'good' | 'fair' | 'poor';
+  healthSpouse1: 'not_applicable' | 'excellent' | 'good' | 'fair' | 'poor';
+  healthSpouse2: 'not_applicable' | 'excellent' | 'good' | 'fair' | 'poor';
   incomeSpouse1: number;
   incomeSpouse2: number;
   earnCapacitySpouse1: number;
   earnCapacitySpouse2: number;
-  contributionToMarriage: string;
-  custodyArrangement?: 'sole_1' | 'sole_2' | 'joint' | 'none';
-  domesticViolence: boolean;
-  wastingOfAssets: boolean;
-  taxConsequences: boolean;
+  contributionToMarriage: string; // Existing field, kept as is
+  custodyArrangement?: 'sole_1' | 'sole_2' | 'joint' | 'other'; // Changed 'none' to 'other'
+  domesticViolence?: boolean; // Made optional as per convention of other optional fields
+  wastingOfAssets?: boolean; // Made optional as per convention of other optional fields
+  taxConsequences: boolean; // Existing field, kept as is
+
+  // New optional fields for Pennsylvania
+  priorMarriageSpouse1?: boolean;
+  priorMarriageSpouse2?: boolean;
+  stationSpouse1?: string;
+  stationSpouse2?: string;
+  vocationalSkillsSpouse1?: string;
+  vocationalSkillsSpouse2?: string;
+  estateSpouse1?: number;
+  estateSpouse2?: number;
+  needsSpouse1?: string;
+  needsSpouse2?: string;
+  contributionToEducationTrainingSpouse1?: boolean;
+  contributionToEducationTrainingSpouse2?: boolean;
+  opportunityFutureAcquisitionsSpouse1?: string;
+  opportunityFutureAcquisitionsSpouse2?: string;
+  sourcesOfIncomeDetailsSpouse1?: string;
+  sourcesOfIncomeDetailsSpouse2?: string;
+  standardOfLiving?: string;
+  economicCircumstancesAtDivorceSpouse1?: string;
+  economicCircumstancesAtDivorceSpouse2?: string;
+  expenseOfSaleAssets?: number;
+  // significantTaxConsequences?: boolean; // Decided to use existing taxConsequences
 }
 
 export interface PropertyDivision {
