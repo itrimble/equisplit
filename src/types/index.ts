@@ -42,6 +42,143 @@ export interface User {
   updatedAt: Date;
 }
 
+// --- Payload Types for PDF Document Generation ---
+
+export interface CaseInfoPayload {
+  spouse1FullName: string;
+  spouse2FullName: string;
+  jurisdiction: string; // Full state name
+  marriageDate: string; // Formatted date string
+  separationDate: string; // Formatted date string, or "N/A"
+}
+
+export interface EqualizationPaymentPayload {
+  amount: number;
+  fromSpouse: string; // "Spouse 1" or "Spouse 2"
+  toSpouse: string;
+}
+
+export interface SummaryTotalsPayload {
+  totalCommunityAssetsValue: number;
+  totalCommunityDebtsValue: number;
+  netCommunityEstateValue: number;
+  spouse1ShareOfNetCommunity: number;
+  spouse2ShareOfNetCommunity: number;
+  spouse1SeparateAssetsValue: number;
+  spouse1SeparateDebtsValue: number;
+  spouse1NetSeparateEstate: number;
+  spouse2SeparateAssetsValue: number;
+  spouse2SeparateDebtsValue: number;
+  spouse2NetSeparateEstate: number;
+  totalNetAwardedToSpouse1: number;
+  totalNetAwardedToSpouse2: number;
+  equalizationPayment?: EqualizationPaymentPayload | null;
+}
+
+export interface AssetLineItemPayload {
+  description: string;
+  type?: string; // Optional, from original Asset.type
+  totalValue: number;
+  awardedToSpouse1?: number; // For community assets
+  awardedToSpouse2?: number; // For community assets
+  value?: number; // For separate assets (replaces totalValue for simpler display)
+  reasoning?: string;
+}
+
+export interface DebtLineItemPayload {
+  description: string;
+  creditor?: string;
+  type?: string; // Optional, from original Debt.type
+  totalBalance: number;
+  responsibilitySpouse1?: number; // For community debts
+  responsibilitySpouse2?: number; // For community debts
+  balance?: number; // For separate debts (replaces totalBalance)
+  reasoning?: string;
+}
+
+export interface PropertyDebtSummaryPayload {
+  documentTitle: string;
+  preparedDate: string; // Formatted date string
+  caseInfo: CaseInfoPayload;
+  summary: SummaryTotalsPayload;
+  communityAssets: AssetLineItemPayload[];
+  communityDebts: DebtLineItemPayload[];
+  spouse1SeparateAssets: AssetLineItemPayload[];
+  spouse1SeparateDebts: DebtLineItemPayload[];
+  spouse2SeparateAssets: AssetLineItemPayload[];
+  spouse2SeparateDebts: DebtLineItemPayload[];
+  disclaimers: string[];
+}
+// Test comment for PDF payload types
+
+// --- Payload Types for PDF Document Generation ---
+
+export interface CaseInfoPayload {
+  spouse1FullName: string;
+  spouse2FullName: string;
+  jurisdiction: string; // Full state name
+  marriageDate: string; // Formatted date string
+  separationDate: string; // Formatted date string, or "N/A"
+}
+
+export interface EqualizationPaymentPayload {
+  amount: number;
+  fromSpouse: string; // "Spouse 1" or "Spouse 2"
+  toSpouse: string;
+}
+
+export interface SummaryTotalsPayload {
+  totalCommunityAssetsValue: number;
+  totalCommunityDebtsValue: number;
+  netCommunityEstateValue: number;
+  spouse1ShareOfNetCommunity: number;
+  spouse2ShareOfNetCommunity: number;
+  spouse1SeparateAssetsValue: number;
+  spouse1SeparateDebtsValue: number;
+  spouse1NetSeparateEstate: number;
+  spouse2SeparateAssetsValue: number;
+  spouse2SeparateDebtsValue: number;
+  spouse2NetSeparateEstate: number;
+  totalNetAwardedToSpouse1: number;
+  totalNetAwardedToSpouse2: number;
+  equalizationPayment?: EqualizationPaymentPayload | null;
+}
+
+export interface AssetLineItemPayload {
+  description: string;
+  type?: string; // Optional, from original Asset.type
+  totalValue: number;
+  awardedToSpouse1?: number; // For community assets
+  awardedToSpouse2?: number; // For community assets
+  value?: number; // For separate assets (replaces totalValue for simpler display)
+  reasoning?: string;
+}
+
+export interface DebtLineItemPayload {
+  description: string;
+  creditor?: string;
+  type?: string; // Optional, from original Debt.type
+  totalBalance: number;
+  responsibilitySpouse1?: number; // For community debts
+  responsibilitySpouse2?: number; // For community debts
+  balance?: number; // For separate debts (replaces totalBalance)
+  reasoning?: string;
+}
+
+export interface PropertyDebtSummaryPayload {
+  documentTitle: string;
+  preparedDate: string; // Formatted date string
+  caseInfo: CaseInfoPayload;
+  summary: SummaryTotalsPayload;
+  communityAssets: AssetLineItemPayload[];
+  communityDebts: DebtLineItemPayload[];
+  spouse1SeparateAssets: AssetLineItemPayload[];
+  spouse1SeparateDebts: DebtLineItemPayload[];
+  spouse2SeparateAssets: AssetLineItemPayload[];
+  spouse2SeparateDebts: DebtLineItemPayload[];
+  disclaimers: string[];
+}
+
 export interface Asset {
   id: string;
   userId: string;
