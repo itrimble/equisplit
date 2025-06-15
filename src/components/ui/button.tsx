@@ -23,11 +23,11 @@ const buttonVariants = cva(
         success: "bg-green-600 text-white hover:bg-green-700 border border-green-600",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        xl: "h-12 rounded-md px-12 text-base",
-        icon: "h-10 w-10",
+        default: "h-11 px-4 py-2", // Increased from 40px to 44px for WCAG 2.1 AA compliance
+        sm: "h-11 rounded-md px-3",  // Increased from 36px to 44px for WCAG 2.1 AA compliance
+        lg: "h-12 rounded-md px-8",  // Increased from 44px to 48px for better touch experience
+        xl: "h-14 rounded-md px-12 text-base", // Increased from 48px to 56px for better touch experience
+        icon: "h-11 w-11", // Increased from 40px to 44px for WCAG 2.1 AA compliance
       },
     },
     defaultVariants: {

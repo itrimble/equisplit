@@ -9,11 +9,35 @@ import {
   USState
 } from '@/types';
 import { isCommunityPropertyState, STATE_INFO } from './states';
+import { performanceMonitor } from '@/lib/performance-monitor';
 
 /**
- * Main calculation engine for property division
+ * Main calculation engine for property division with performance tracking
  */
-export function calculatePropertyDivision(input: CalculationInput): PropertyDivision {
+export async function calculatePropertyDivision(input: CalculationInput): Promise<PropertyDivision> {
+  const calculationType = isCommunityPropertyState(input.jurisdiction) ? 'community' : 'equitable';
+  
+  return await performanceMonitor.trackCalculation(
+    () => {
+      if (isCommunityPropertyState(input.jurisdiction)) {
+        return calculateCommunityProperty(input);
+      } else {
+        return calculateEquitableDistribution(input);
+      }
+    },
+    {
+      assetCount: input.assets.length,
+      debtCount: input.debts.length,
+      jurisdiction: input.jurisdiction,
+      calculationType
+    }
+  );
+}
+
+/**
+ * Synchronous version for compatibility (deprecated - use async version)
+ */
+export function calculatePropertyDivisionSync(input: CalculationInput): PropertyDivision {
   if (isCommunityPropertyState(input.jurisdiction)) {
     return calculateCommunityProperty(input);
   } else {

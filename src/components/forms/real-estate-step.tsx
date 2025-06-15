@@ -289,7 +289,8 @@ export function RealEstateStep({ data, onUpdate }: RealEstateStepProps) {
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
                           id={`realEstateProperties.${index}.currentValue`}
-                          type="text"
+                          type="number"
+                          inputMode="decimal"
                           {...register(`realEstateProperties.${index}.currentValue`)}
                           placeholder="e.g., 500000"
                           className={`pl-8 ${errors.realEstateProperties?.[index]?.currentValue ? 'border-red-500' : ''}`}
@@ -326,7 +327,8 @@ export function RealEstateStep({ data, onUpdate }: RealEstateStepProps) {
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
                           id={`realEstateProperties.${index}.acquisitionValue`}
-                          type="text"
+                          type="number"
+                          inputMode="decimal"
                           {...register(`realEstateProperties.${index}.acquisitionValue`)}
                           placeholder="e.g., 300000"
                           className={`pl-8 ${errors.realEstateProperties?.[index]?.acquisitionValue ? 'border-red-500' : ''}`}
@@ -342,7 +344,8 @@ export function RealEstateStep({ data, onUpdate }: RealEstateStepProps) {
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
                           id={`realEstateProperties.${index}.mortgageBalance`}
-                          type="text"
+                          type="number"
+                          inputMode="decimal"
                           {...register(`realEstateProperties.${index}.mortgageBalance`)}
                           placeholder="e.g., 200000"
                           className={`pl-8 ${errors.realEstateProperties?.[index]?.mortgageBalance ? 'border-red-500' : ''}`}

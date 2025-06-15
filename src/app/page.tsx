@@ -97,7 +97,7 @@ export default function HomePage() {
             </p>
             
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
               <Button size="xl" variant="legal" asChild>
                 <Link href="/calculator">
                   Start Free Calculation
@@ -109,6 +109,19 @@ export default function HomePage() {
                   See How It Works
                 </Link>
               </Button>
+            </div>
+
+            {/* Legal Disclaimer */}
+            <div className="flex items-center justify-center mb-12">
+              <div className="flex items-center space-x-2 text-sm text-gray-500 bg-white/50 px-4 py-2 rounded-lg border border-gray-200">
+                <Gavel className="h-4 w-4 text-blue-600" />
+                <span>
+                  Educational calculations only • Not legal advice • 
+                  <Link href="/legal/disclaimer" className="text-blue-600 hover:underline ml-1">
+                    Professional consultation required
+                  </Link>
+                </span>
+              </div>
             </div>
 
             {/* Trust Indicators */}

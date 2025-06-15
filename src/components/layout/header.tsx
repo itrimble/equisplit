@@ -56,11 +56,12 @@ export function Header() {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center"> {/* Added flex items-center */}
+          <div className="md:hidden flex items-center">
             <button
               type="button"
-              className="text-gray-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="p-2 text-gray-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
             >
               {isMenuOpen ? (
                 <X className="h-6 w-6" aria-hidden="true" />
@@ -79,7 +80,7 @@ export function Header() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="text-gray-600 hover:text-blue-600 block px-3 py-2 text-base font-medium"
+                  className="text-gray-600 hover:text-blue-600 block px-4 py-3 text-base font-medium min-h-[44px] flex items-center rounded-md hover:bg-gray-50 transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {item.name}

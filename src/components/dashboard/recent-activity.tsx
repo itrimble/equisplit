@@ -1,89 +1,64 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useRecentActivity } from '@/hooks/use-dashboard-data';
 import { 
   CalculatorIcon, 
   DocumentTextIcon, 
   CreditCardIcon,
   UserCircleIcon,
-  ClockIcon 
+  ClockIcon,
+  ExclamationTriangleIcon,
+  EyeIcon,
+  LockClosedIcon,
+  TrashIcon,
+  ArrowPathIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
 
 interface RecentActivityProps {
   userId: string;
 }
 
-// This would typically fetch real activity data from audit logs
-async function getRecentActivity(userId: string) {
-  // Mock data - replace with actual database queries
-  return [
-    {
-      id: '1',
-      type: 'calculation',
-      title: 'Started California community property calculation',
-      description: 'Property division for divorce proceedings',
-      timestamp: new Date('2024-06-14T10:30:00'),
-      status: 'in-progress',
-    },
-    {
-      id: '2',
-      type: 'document',
-      title: 'Generated Marital Settlement Agreement',
-      description: 'MSA for Texas calculation #123',
-      timestamp: new Date('2024-06-13T15:45:00'),
-      status: 'completed',
-    },
-    {
-      id: '3',
-      type: 'calculation',
-      title: 'Completed Pennsylvania equitable distribution',
-      description: 'Final property division results',
-      timestamp: new Date('2024-06-12T09:15:00'),
-      status: 'completed',
-    },
-    {
-      id: '4',
-      type: 'payment',
-      title: 'Professional subscription renewed',
-      description: 'Monthly billing cycle',
-      timestamp: new Date('2024-06-10T12:00:00'),
-      status: 'completed',
-    },
-    {
-      id: '5',
-      type: 'profile',
-      title: 'Updated profile information',
-      description: 'Changed contact email address',
-      timestamp: new Date('2024-06-08T14:20:00'),
-      status: 'completed',
-    },
-  ];
-}
-
-function getActivityIcon(type: string) {
-  switch (type) {
-    case 'calculation':
+function getActivityIcon(action: string) {
+  switch (action) {
+    case 'CALCULATE':
       return CalculatorIcon;
-    case 'document':
+    case 'GENERATE_DOCUMENT':
       return DocumentTextIcon;
-    case 'payment':
-      return CreditCardIcon;
-    case 'profile':
-      return UserCircleIcon;
+    case 'LOGIN':
+    case 'LOGOUT':
+      return LockClosedIcon;
+    case 'UPDATE':
+      return ArrowPathIcon;
+    case 'CREATE':
+      return CalculatorIcon;
+    case 'READ':
+      return EyeIcon;
+    case 'DELETE':
+      return TrashIcon;
+    case 'CHANGE_PASSWORD':
+    case 'ENABLE_MFA':
+    case 'DISABLE_MFA':
+      return KeyIcon;
     default:
       return ClockIcon;
   }
 }
 
-function getActivityBadge(status: string) {
-  switch (status) {
-    case 'completed':
-      return <Badge variant="outline" className="text-green-700 bg-green-50 border-green-200">Completed</Badge>;
-    case 'in-progress':
-      return <Badge variant="outline" className="text-yellow-700 bg-yellow-50 border-yellow-200">In Progress</Badge>;
-    case 'failed':
-      return <Badge variant="outline" className="text-red-700 bg-red-50 border-red-200">Failed</Badge>;
+function getActivityBadge(severity: string) {
+  switch (severity) {
+    case 'INFO':
+      return <Badge variant="outline" className="text-blue-700 bg-blue-50 border-blue-200">Info</Badge>;
+    case 'WARNING':
+      return <Badge variant="outline" className="text-yellow-700 bg-yellow-50 border-yellow-200">Warning</Badge>;
+    case 'ERROR':
+    case 'CRITICAL':
+      return <Badge variant="outline" className="text-red-700 bg-red-50 border-red-200">Error</Badge>;
     default:
-      return <Badge variant="outline">Unknown</Badge>;
+      return <Badge variant="outline" className="text-gray-700 bg-gray-50 border-gray-200">Debug</Badge>;
   }
 }
 
@@ -102,49 +77,137 @@ function formatTimestamp(date: Date) {
   }
 }
 
-export async function RecentActivity({ userId }: RecentActivityProps) {
-  const activities = await getRecentActivity(userId);
+function getActivityTitle(action: string, resourceType: string, details: any) {
+  switch (action) {
+    case 'CALCULATE':
+      return 'Started property division calculation';
+    case 'GENERATE_DOCUMENT':
+      return `Generated ${resourceType === 'document' ? 'legal document' : 'document'}`;
+    case 'LOGIN':
+      return 'Signed in to account';
+    case 'LOGOUT':
+      return 'Signed out of account';
+    case 'CREATE':
+      if (resourceType === 'calculation') return 'Created new calculation';
+      if (resourceType === 'asset') return 'Added new asset';
+      if (resourceType === 'debt') return 'Added new debt';
+      return `Created ${resourceType}`;
+    case 'UPDATE':
+      if (resourceType === 'user') return 'Updated profile information';
+      return `Updated ${resourceType}`;
+    case 'READ':
+      if (resourceType === 'calculation') return 'Viewed calculation results';
+      return `Accessed ${resourceType}`;
+    case 'DELETE':
+      if (resourceType === 'calculation') return 'Deleted calculation';
+      return `Removed ${resourceType}`;
+    case 'CHANGE_PASSWORD':
+      return 'Changed account password';
+    case 'ENABLE_MFA':
+      return 'Enabled two-factor authentication';
+    case 'DISABLE_MFA':
+      return 'Disabled two-factor authentication';
+    default:
+      return `${action.toLowerCase()} ${resourceType}`;
+  }
+}
+
+function getActivityDescription(action: string, resourceType: string, details: any) {
+  if (details?.jurisdiction) {
+    return `${details.jurisdiction} property division`;
+  }
+  if (details?.calculationId) {
+    return `Calculation ID: ${details.calculationId.slice(0, 8)}...`;
+  }
+  if (details?.error) {
+    return `Error: ${details.error}`;
+  }
+  return `${resourceType} activity`;
+}
+
+export function RecentActivity({ userId }: RecentActivityProps) {
+  const { activities, loading, error } = useRecentActivity(10);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-6 w-16" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mx-auto mb-2" />
+            <p className="text-red-600">Failed to load recent activity</p>
+            <p className="text-sm text-gray-500 mt-1">{error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">
-          Recent Activity
-        </CardTitle>
+        <CardTitle>Recent Activity</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {activities.length === 0 ? (
-            <div className="text-center py-8">
-              <ClockIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No recent activity</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Start a calculation to see your activity here
-              </p>
-            </div>
-          ) : (
-            activities.map((activity) => {
-              const Icon = getActivityIcon(activity.type);
+        {activities.length === 0 ? (
+          <div className="text-center py-8">
+            <ClockIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No recent activity
+            </h3>
+            <p className="text-gray-500">
+              Your account activity will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {activities.map((activity) => {
+              const Icon = getActivityIcon(activity.action);
               
               return (
-                <div
-                  key={activity.id}
-                  className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex-shrink-0">
-                    <Icon className="h-5 w-5 text-gray-400 mt-0.5" />
+                <div key={activity.id} className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                  <div className="flex-shrink-0 mt-1">
+                    <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center">
+                      <Icon className="w-4 h-4 text-blue-600" />
+                    </div>
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 mb-1">
                       <p className="text-sm font-medium text-gray-900 truncate">
-                        {activity.title}
+                        {getActivityTitle(activity.action, activity.resourceType, activity.details)}
                       </p>
-                      {getActivityBadge(activity.status)}
+                      {getActivityBadge(activity.severity)}
                     </div>
                     
-                    <p className="text-sm text-gray-500 mt-1">
-                      {activity.description}
+                    <p className="text-xs text-gray-500 truncate">
+                      {getActivityDescription(activity.action, activity.resourceType, activity.details)}
                     </p>
                     
                     <p className="text-xs text-gray-400 mt-1">
@@ -153,18 +216,7 @@ export async function RecentActivity({ userId }: RecentActivityProps) {
                   </div>
                 </div>
               );
-            })
-          )}
-        </div>
-        
-        {activities.length > 0 && (
-          <div className="mt-6 text-center">
-            <a
-              href="/dashboard/activity"
-              className="text-sm font-medium text-blue-600 hover:text-blue-500"
-            >
-              View all activity →
-            </a>
+            })}
           </div>
         )}
       </CardContent>

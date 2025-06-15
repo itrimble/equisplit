@@ -5,6 +5,7 @@ import { validateFileUpload } from '@/lib/validation'
 import { encryptString } from '@/lib/encryption'
 import { prisma } from '@/lib/prisma'
 import { performSecurityScan } from '@/lib/file-security'
+import { withSecurity, SECURITY_CONFIGS } from '@/lib/security-middleware'
 import pdfParse from 'pdf-parse'
 import { createWorker } from 'tesseract.js'
 import { writeFile, mkdir } from 'fs/promises'
@@ -14,7 +15,7 @@ import path from 'path'
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/uploads'
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     // Authentication check
     const session = await auth()
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     // Authentication check
     const session = await auth()
@@ -684,3 +685,7 @@ function extractFinancialDataFromCSV(rows: string[][]): Array<{
 
   return extracted
 }
+
+// Export handlers with security middleware
+export const POST = withSecurity(handlePOST, SECURITY_CONFIGS.UPLOAD)
+export const GET = withSecurity(handleGET, SECURITY_CONFIGS.UPLOAD)

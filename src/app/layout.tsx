@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { auth } from "@/lib/auth";
 import { CookieConsentBanner } from "@/components/cookies/cookie-consent-banner";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -82,10 +83,24 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SessionProvider session={session}>
-          {children}
-          <CookieConsentBanner />
-        </SessionProvider>
+        <ErrorBoundary feature="Application">
+          <SessionProvider session={session}>
+            {children}
+            <CookieConsentBanner />
+          </SessionProvider>
+        </ErrorBoundary>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Initialize Web Vitals tracking
+              if (typeof window !== 'undefined') {
+                import('/src/lib/web-vitals.js')
+                  .then(({ trackWebVitals }) => trackWebVitals())
+                  .catch(console.error);
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

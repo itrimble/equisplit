@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { auditLogger, AuditAction, ComplianceLevel } from '@/lib/audit'
 import { validateApiRequest } from '@/lib/validation'
 import { prisma } from '@/lib/prisma'
+import { withSecurity, SECURITY_CONFIGS } from '@/lib/security-middleware'
 import Stripe from 'stripe'
 import { z } from 'zod'
 
@@ -29,7 +30,7 @@ const createPaymentSchema = z.object({
   cancelUrl: z.string().url(),
 })
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     // Authentication check
     const session = await auth()
@@ -152,11 +153,17 @@ async function handleCreateSubscription(request: NextRequest, userId: string, bo
       ComplianceLevel.FINANCIAL
     )
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       sessionId: checkoutSession.id,
       url: checkoutSession.url,
     })
+
+    // Add legal disclaimer headers
+    response.headers.set('X-Legal-Disclaimer', 'Educational platform only. Not legal advice.')
+    response.headers.set('X-Professional-Consultation', 'Consult qualified legal professionals.')
+
+    return response
 
   } catch (error) {
     console.error('Stripe subscription error:', error)
@@ -226,10 +233,16 @@ async function handleCancelSubscription(request: NextRequest, userId: string, bo
       ComplianceLevel.FINANCIAL
     )
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Subscription cancelled successfully',
     })
+
+    // Add legal disclaimer headers
+    response.headers.set('X-Legal-Disclaimer', 'Educational platform only. Not legal advice.')
+    response.headers.set('X-Professional-Consultation', 'Consult qualified legal professionals.')
+
+    return response
 
   } catch (error) {
     console.error('Stripe cancellation error:', error)
@@ -324,11 +337,17 @@ async function handleCreatePayment(request: NextRequest, userId: string, body: a
       ComplianceLevel.FINANCIAL
     )
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       sessionId: checkoutSession.id,
       url: checkoutSession.url,
     })
+
+    // Add legal disclaimer headers
+    response.headers.set('X-Legal-Disclaimer', 'Educational platform only. Not legal advice.')
+    response.headers.set('X-Professional-Consultation', 'Consult qualified legal professionals.')
+
+    return response
 
   } catch (error) {
     console.error('Stripe payment error:', error)
@@ -339,7 +358,7 @@ async function handleCreatePayment(request: NextRequest, userId: string, body: a
   }
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     // Authentication check
     const session = await auth()
@@ -417,7 +436,7 @@ async function getSubscriptionStatus(request: NextRequest, userId: string) {
       ComplianceLevel.FINANCIAL
     )
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       subscription: {
         status: user.subscriptionStatus,
@@ -430,6 +449,12 @@ async function getSubscriptionStatus(request: NextRequest, userId: string) {
         } : null,
       },
     })
+
+    // Add legal disclaimer headers
+    response.headers.set('X-Legal-Disclaimer', 'Educational platform only. Not legal advice.')
+    response.headers.set('X-Professional-Consultation', 'Consult qualified legal professionals.')
+
+    return response
 
   } catch (error) {
     console.error('Get subscription status error:', error)
@@ -448,10 +473,16 @@ async function getPaymentHistory(request: NextRequest, userId: string) {
     })
 
     if (!user?.stripeCustomerId) {
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         payments: [],
       })
+
+      // Add legal disclaimer headers
+      response.headers.set('X-Legal-Disclaimer', 'Educational platform only. Not legal advice.')
+      response.headers.set('X-Professional-Consultation', 'Consult qualified legal professionals.')
+
+      return response
     }
 
     // Get payment history from Stripe
@@ -479,10 +510,16 @@ async function getPaymentHistory(request: NextRequest, userId: string) {
       ComplianceLevel.FINANCIAL
     )
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       payments,
     })
+
+    // Add legal disclaimer headers
+    response.headers.set('X-Legal-Disclaimer', 'Educational platform only. Not legal advice.')
+    response.headers.set('X-Professional-Consultation', 'Consult qualified legal professionals.')
+
+    return response
 
   } catch (error) {
     console.error('Get payment history error:', error)
@@ -492,3 +529,7 @@ async function getPaymentHistory(request: NextRequest, userId: string) {
     )
   }
 }
+
+// Export handlers with security middleware
+export const POST = withSecurity(handlePOST, SECURITY_CONFIGS.PAYMENT)
+export const GET = withSecurity(handleGET, SECURITY_CONFIGS.PAYMENT)

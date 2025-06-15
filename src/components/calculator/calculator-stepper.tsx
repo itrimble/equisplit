@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useMemo, useCallback } from 'react';
 import { Check, ChevronRight } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
@@ -12,7 +13,7 @@ interface CalculatorStepperProps {
   onStepClick: (stepNumber: number) => void;
 }
 
-export function CalculatorStepper({
+export const CalculatorStepper = React.memo(function CalculatorStepper({
   currentStep,
   totalSteps,
   stepTitles,
@@ -20,24 +21,41 @@ export function CalculatorStepper({
   canNavigateToStep,
   onStepClick
 }: CalculatorStepperProps) {
+  // Memoize the steps array to prevent recreation on each render
+  const steps = useMemo(() => 
+    Array.from({ length: totalSteps }, (_, index) => {
+      const stepNumber = index + 1;
+      return {
+        stepNumber,
+        title: stepTitles[index] || `Step ${stepNumber}`,
+        isCurrent: stepNumber === currentStep,
+        isComplete: isStepComplete(stepNumber),
+        canNavigate: canNavigateToStep(stepNumber)
+      };
+    })
+  , [totalSteps, stepTitles, currentStep, isStepComplete, canNavigateToStep]);
+
+  // Memoize the click handler to prevent unnecessary re-renders
+  const handleStepClick = useCallback((stepNumber: number, canNavigate: boolean) => {
+    if (canNavigate) {
+      onStepClick(stepNumber);
+    }
+  }, [onStepClick]);
+
   return (
     <nav aria-label="Progress" className="mb-8">
       <ol className="flex items-center justify-between">
-        {Array.from({ length: totalSteps }, (_, index) => {
-          const stepNumber = index + 1;
-          const isCurrent = stepNumber === currentStep;
-          const isComplete = isStepComplete(stepNumber);
-          const canNavigate = canNavigateToStep(stepNumber);
+        {steps.map(({ stepNumber, title, isCurrent, isComplete, canNavigate }) => {
           
           return (
             <li key={stepNumber} className="relative flex-1">
               {/* Step Circle */}
               <div className="flex items-center">
                 <button
-                  onClick={() => canNavigate && onStepClick(stepNumber)}
+                  onClick={() => handleStepClick(stepNumber, canNavigate)}
                   disabled={!canNavigate}
                   className={cn(
-                    'relative flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors',
+                    'relative flex h-11 w-11 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors',
                     {
                       // Current step
                       'border-blue-600 bg-blue-600 text-white': isCurrent,
@@ -73,7 +91,7 @@ export function CalculatorStepper({
                       }
                     )}
                   >
-                    {stepTitles[index]}
+                    {title}
                   </div>
                   {isCurrent && (
                     <div className="text-xs text-gray-500">Current step</div>
