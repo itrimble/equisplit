@@ -86,3 +86,14 @@ coverage/
 .nyc_output/
 test-results/
 playwright-report/
+
+# Added by Task Master AI
+logs
+# Dependency directories
+node_modules/
+# Environment variables
+.env
+# Editor directories and files
+.idea
+.vscode
+# OS specific

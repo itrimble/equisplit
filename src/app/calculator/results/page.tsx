@@ -14,6 +14,7 @@ import { calculatePropertyDivision, calculateConfidenceLevel } from '@/utils/cal
 import { generatePropertyDebtSummaryPayload } from '@/utils/documentPayloadTransformer';
 import { prepareMsaTemplateData } from '@/utils/msaDataTransformer'; // Added MSA data transformer
 import { getStateInfo, isCommunityPropertyState } from '@/utils/states';
+import { validateTemplateFile, getTemplateErrorMessage, TEMPLATE_REGISTRY } from '@/utils/template-validator';
 import { useMultiStepForm } from '@/hooks/useMultiStepForm';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import PizZip from 'pizzip';
@@ -191,8 +192,18 @@ export default function ResultsPage() {
       alert("Data not ready for MSA generation. Please wait or try refreshing.");
       return;
     }
+    
     setIsGeneratingMsa(true);
     try {
+      // Validate template file before attempting to use it
+      const templateConfig = TEMPLATE_REGISTRY.msa;
+      const validationResult = await validateTemplateFile(templateConfig.path);
+      
+      if (!validationResult.exists || !validationResult.accessible) {
+        const errorMessage = getTemplateErrorMessage('msa', validationResult);
+        throw new Error(errorMessage);
+      }
+
       const msaData = prepareMsaTemplateData(
         calculationInputForDisplay,
         propertyDivisionResult,
@@ -201,19 +212,22 @@ export default function ResultsPage() {
 
       const response = await fetch('/templates/msa_template.docx');
       if (!response.ok) {
-        throw new Error(`Failed to fetch MSA template. Status: ${response.status}. Ensure msa_template.docx is in public/templates/`);
+        throw new Error(`Failed to fetch MSA template. Status: ${response.status}. The template file may be missing or corrupted. Please contact support.`);
       }
+      
       const templateArrayBuffer = await response.arrayBuffer();
+
+      // Validate template content size
+      if (templateArrayBuffer.byteLength < 1024) {
+        throw new Error('The MSA template file appears to be corrupted or empty. Please contact support.');
+      }
 
       const zip = new PizZip(templateArrayBuffer);
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
-        // To handle nullish values gracefully in loops, you can use a custom parser or ensure data is clean.
-        // For example, if a loop like {{#marital_assets_s1}} has an undefined or null marital_assets_s1,
-        // docxtemplater might throw an error. Ensure such arrays are at least empty [] in msaData.
-        // The prepareMsaTemplateData function should already ensure this.
         nullGetter: () => "", // Return empty string for null/undefined values in simple placeholders
+        errorLogging: process.env.NODE_ENV === 'development' // Enable error logging in development
       });
 
       doc.setData(msaData);
@@ -227,7 +241,20 @@ export default function ResultsPage() {
 
     } catch (error: any) {
       console.error("Error generating MSA DOCX:", error);
-      alert(`Failed to generate MSA document: ${error.message || 'Unknown error'}`);
+      
+      // Provide more user-friendly error messages
+      let userMessage = 'Failed to generate MSA document. ';
+      if (error.message.includes('template')) {
+        userMessage += 'There was an issue with the document template. Please contact support.';
+      } else if (error.message.includes('fetch')) {
+        userMessage += 'There was a network error. Please check your connection and try again.';
+      } else if (error.message.includes('render') || error.message.includes('docxtemplater')) {
+        userMessage += 'There was an error processing your data. Please verify your inputs and try again.';
+      } else {
+        userMessage += error.message || 'An unexpected error occurred. Please try again or contact support.';
+      }
+      
+      alert(userMessage);
     } finally {
       setIsGeneratingMsa(false);
     }

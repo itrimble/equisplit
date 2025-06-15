@@ -8,7 +8,7 @@ import {
   EquitableDistributionFactors,
   USState
 } from '@/types';
-import { isCommunityPropertyState } from './states';
+import { isCommunityPropertyState, STATE_INFO } from './states';
 
 /**
  * Main calculation engine for property division
@@ -30,8 +30,6 @@ export function calculatePropertyDivision(input: CalculationInput): PropertyDivi
  */
 function calculateCommunityProperty(input: CalculationInput): PropertyDivision {
   const { assets, debts, marriageInfo, jurisdiction } = input;
-  // Ensure STATE_INFO is accessible here, e.g., by importing it from ../utils/states
-  // import { STATE_INFO } from './states'; // Assuming this import exists or is added
 
   const assetDivisions: AssetDivision[] = [];
   const debtDivisions: DebtDivision[] = [];
@@ -288,7 +286,7 @@ function calculateEquitableDistribution(input: CalculationInput): PropertyDivisi
  * Calculate equity factor for equitable distribution
  * Returns a value between 0.3 and 0.7 (30% to 70% for spouse 1)
  */
-function calculateEquityFactor(factors: EquitableDistributionFactors): number {
+export function calculateEquityFactor(factors: EquitableDistributionFactors): number {
   let score = 0.5; // Start at 50/50
   
   // Marriage duration factor
@@ -354,15 +352,24 @@ function calculateEquityFactor(factors: EquitableDistributionFactors): number {
   // Check if any PA-specific factors are present to apply PA logic.
   // Using a few key PA fields to trigger this block.
   const isPennsylvaniaContext = factors.priorMarriageSpouse1 !== undefined ||
+                               factors.priorMarriageSpouse2 !== undefined ||
                                factors.stationSpouse1 !== undefined ||
+                               factors.stationSpouse2 !== undefined ||
                                factors.vocationalSkillsSpouse1 !== undefined ||
+                               factors.vocationalSkillsSpouse2 !== undefined ||
                                factors.estateSpouse1 !== undefined ||
+                               factors.estateSpouse2 !== undefined ||
                                factors.needsSpouse1 !== undefined ||
+                               factors.needsSpouse2 !== undefined ||
                                factors.contributionToEducationTrainingSpouse1 !== undefined ||
+                               factors.contributionToEducationTrainingSpouse2 !== undefined ||
                                factors.opportunityFutureAcquisitionsSpouse1 !== undefined ||
+                               factors.opportunityFutureAcquisitionsSpouse2 !== undefined ||
                                factors.sourcesOfIncomeDetailsSpouse1 !== undefined ||
+                               factors.sourcesOfIncomeDetailsSpouse2 !== undefined ||
                                factors.standardOfLiving !== undefined ||
                                factors.economicCircumstancesAtDivorceSpouse1 !== undefined ||
+                               factors.economicCircumstancesAtDivorceSpouse2 !== undefined ||
                                factors.expenseOfSaleAssets !== undefined;
 
   if (isPennsylvaniaContext) {
@@ -474,7 +481,9 @@ function calculateEquityFactor(factors: EquitableDistributionFactors): number {
   }
   
   // Ensure factor stays within reasonable bounds
-  return Math.max(0.3, Math.min(0.7, score));
+  const clampedScore = Math.max(0.3, Math.min(0.7, score));
+  // Round to avoid floating point precision issues
+  return Math.round(clampedScore * 1000) / 1000;
 }
 
 function calculateAssetDivision(asset: Asset, input: CalculationInput): AssetDivision {
@@ -597,7 +606,7 @@ export function calculateConfidenceLevel(input: CalculationInput): number {
   
   // Increase confidence for simple situations
   if (input.assets.length <= 5 && input.debts.length <= 3) confidence += 5;
-  if (input.marriageInfo.hasPrenup) confidence += 10;
+  if (input.marriageInfo?.hasPrenup) confidence += 10;
   
   return Math.max(50, Math.min(95, confidence));
 }

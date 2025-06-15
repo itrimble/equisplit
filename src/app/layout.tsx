@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { auth } from "@/lib/auth";
+import { CookieConsentBanner } from "@/components/cookies/cookie-consent-banner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -83,6 +84,7 @@ export default async function RootLayout({
       >
         <SessionProvider session={session}>
           {children}
+          <CookieConsentBanner />
         </SessionProvider>
       </body>
     </html>

@@ -4,6 +4,7 @@ import { auditLogger, AuditAction, ComplianceLevel } from '@/lib/audit'
 import { validateFileUpload } from '@/lib/validation'
 import { encryptString } from '@/lib/encryption'
 import { prisma } from '@/lib/prisma'
+import { performSecurityScan } from '@/lib/file-security'
 import pdfParse from 'pdf-parse'
 import { createWorker } from 'tesseract.js'
 import { writeFile, mkdir } from 'fs/promises'
@@ -34,6 +35,8 @@ export async function POST(request: NextRequest) {
         return await parsePDFDocument(request, session.user.id)
       case 'ocr-image':
         return await performOCR(request, session.user.id)
+      case 'parse-csv':
+        return await parseCSVDocument(request, session.user.id)
       default:
         return NextResponse.json(
           { error: 'Invalid action parameter' },
@@ -109,6 +112,32 @@ async function uploadDocument(request: NextRequest, userId: string) {
 
       return NextResponse.json(
         { error: 'Invalid file', details: fileValidation.errors },
+        { status: 400 }
+      )
+    }
+
+    // Perform security scan
+    const securityResult = await performSecurityScan(file)
+    if (!securityResult.isSecure) {
+      await auditLogger.logUserAction(
+        userId,
+        AuditAction.CREATE,
+        '/api/upload?action=document',
+        request,
+        { 
+          securityThreats: securityResult.threats, 
+          securityScore: securityResult.score,
+          filename: file.name 
+        },
+        ComplianceLevel.LEGAL
+      )
+
+      return NextResponse.json(
+        { 
+          error: 'File failed security scan', 
+          details: securityResult.threats,
+          securityScore: securityResult.score 
+        },
         { status: 400 }
       )
     }
@@ -494,6 +523,164 @@ function extractFinancialData(text: string): Array<{
       })
     }
   })
+
+  return extracted
+}
+
+async function parseCSVDocument(request: NextRequest, userId: string) {
+  try {
+    const formData = await request.formData()
+    const file = formData.get('file') as File
+
+    if (!file) {
+      return NextResponse.json(
+        { error: 'No file provided' },
+        { status: 400 }
+      )
+    }
+
+    // Check if file is CSV or Excel
+    const validTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ]
+    if (!validTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'File must be CSV or Excel format' },
+        { status: 400 }
+      )
+    }
+
+    // Parse CSV data
+    const arrayBuffer = await file.arrayBuffer()
+    const text = new TextDecoder().decode(arrayBuffer)
+    
+    // Simple CSV parsing (for basic CSV files)
+    const rows = text.split('\n').map(row => 
+      row.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''))
+    ).filter(row => row.some(cell => cell.length > 0))
+
+    if (rows.length === 0) {
+      return NextResponse.json(
+        { error: 'No data found in CSV file' },
+        { status: 400 }
+      )
+    }
+
+    // Extract and validate financial data from CSV
+    const extractedFinancialData = extractFinancialDataFromCSV(rows)
+
+    // Log CSV parsing
+    await auditLogger.logUserAction(
+      userId,
+      AuditAction.READ,
+      '/api/upload?action=parse-csv',
+      request,
+      {
+        filename: file.name,
+        fileSize: file.size,
+        rowCount: rows.length,
+        extractedItemsCount: extractedFinancialData.length,
+      },
+      ComplianceLevel.LEGAL
+    )
+
+    return NextResponse.json({
+      success: true,
+      csvInfo: {
+        rows: rows.length,
+        columns: rows[0]?.length || 0,
+        headers: rows[0] || [],
+      },
+      rawData: rows,
+      extractedFinancialData,
+      message: 'CSV parsed successfully',
+    })
+
+  } catch (error) {
+    console.error('Parse CSV error:', error)
+    return NextResponse.json(
+      { error: 'Failed to parse CSV' },
+      { status: 500 }
+    )
+  }
+}
+
+// Helper function to extract financial data from CSV rows
+function extractFinancialDataFromCSV(rows: string[][]): Array<{
+  type: 'asset' | 'debt';
+  description: string;
+  value: number;
+  category?: string;
+  source: 'csv';
+  rowIndex: number;
+}> {
+  const extracted: Array<{
+    type: 'asset' | 'debt';
+    description: string;
+    value: number;
+    category?: string;
+    source: 'csv';
+    rowIndex: number;
+  }> = []
+
+  if (rows.length === 0) return extracted
+
+  const headers = rows[0].map(h => h.toLowerCase())
+  
+  // Look for common financial column patterns
+  const descriptionColumns = headers.findIndex(h => 
+    h.includes('description') || h.includes('item') || h.includes('name') || h.includes('account')
+  )
+  const valueColumns = headers.findIndex(h => 
+    h.includes('amount') || h.includes('value') || h.includes('balance') || h.includes('total')
+  )
+  const typeColumns = headers.findIndex(h => 
+    h.includes('type') || h.includes('category') || h.includes('class')
+  )
+
+  // Process data rows (skip header)
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i]
+    
+    if (descriptionColumns >= 0 && valueColumns >= 0 && row[descriptionColumns] && row[valueColumns]) {
+      try {
+        const description = row[descriptionColumns].trim()
+        const valueStr = row[valueColumns].replace(/[$,\s]/g, '')
+        const value = parseFloat(valueStr)
+        
+        if (!isNaN(value) && value > 0 && description.length > 0) {
+          // Determine if it's an asset or debt based on description or type column
+          let type: 'asset' | 'debt' = 'asset'
+          const category = typeColumns >= 0 ? row[typeColumns] : undefined
+          
+          // Check for debt keywords
+          const debtKeywords = ['debt', 'loan', 'mortgage', 'credit', 'liability', 'owed', 'balance due']
+          const isDebt = debtKeywords.some(keyword => 
+            description.toLowerCase().includes(keyword) || 
+            (category && category.toLowerCase().includes(keyword))
+          )
+          
+          if (isDebt) {
+            type = 'debt'
+          }
+
+          extracted.push({
+            type,
+            description,
+            value,
+            category,
+            source: 'csv',
+            rowIndex: i,
+          })
+        }
+      } catch (error) {
+        // Skip invalid rows
+        continue
+      }
+    }
+  }
 
   return extracted
 }
