@@ -3,10 +3,21 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Scale, Menu, X, Shield, Lock } from 'lucide-react';
+import { Scale, Menu, X, Shield, Lock, LogOut, UserCircle, Settings, ExternalLink } from 'lucide-react'; // Added new icons
+import { useSession, signOut } from 'next-auth/react'; // Added next-auth hooks
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { data: session, status } = useSession();
+  const isLoading = status === 'loading';
 
   const navigation = [
     { name: 'Calculator', href: '/calculator' },
@@ -51,18 +62,63 @@ export function Header() {
               <Lock className="h-4 w-4" />
               <span>Encrypted</span>
             </div>
+            {/* Auth Buttons / User Info */}
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" asChild>
-                <Link href="/auth/signin">Sign In</Link>
-              </Button>
-              <Button variant="legal" asChild>
-                <Link href="/auth/signup">Get Started</Link>
-              </Button>
+              {isLoading ? (
+                <div className="w-20 h-8 animate-pulse bg-gray-200 rounded-md"></div> // Placeholder for loading
+              ) : session ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-100">
+                      <UserCircle className="h-5 w-5 text-gray-600" />
+                      <span className="text-sm font-medium text-gray-700 hidden sm:inline">
+                        {session.user?.email || session.user?.name || "Account"}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {session.user?.name || "User"}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {session.user?.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {/* <DropdownMenuItem disabled>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Account Settings</span>
+                    </DropdownMenuItem> */}
+                    <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sign Out</span>
+                    </DropdownMenuItem>
+                    {/* <DropdownMenuSeparator />
+                     <DropdownMenuItem asChild>
+                        <Link href="/legal/terms-of-service" target="_blank" className="cursor-pointer">
+                           <ExternalLink className="mr-2 h-4 w-4" /> Terms of Service
+                        </Link>
+                    </DropdownMenuItem> */}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Button variant="ghost" asChild>
+                    <Link href="/login">Sign In</Link>
+                  </Button>
+                  <Button variant="default" asChild> {/* Changed "legal" to "default" or another standard variant */}
+                    <Link href="/auth/signup">Sign Up</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center"> {/* Added flex items-center */}
             <button
               type="button"
               className="text-gray-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -101,16 +157,35 @@ export function Header() {
                   </div>
                 </div>
                 <div className="space-y-2 px-3">
-                  <Button variant="ghost" className="w-full justify-start" asChild>
-                    <Link href="/auth/signin" onClick={() => setIsMenuOpen(false)}>
-                      Sign In
-                    </Link>
-                  </Button>
-                  <Button variant="legal" className="w-full" asChild>
-                    <Link href="/auth/signup" onClick={() => setIsMenuOpen(false)}>
-                      Get Started Free
-                    </Link>
-                  </Button>
+                  {isLoading ? (
+                     <div className="w-full h-8 animate-pulse bg-gray-200 rounded-md my-2"></div> // Loading placeholder
+                  ) : session ? (
+                    <>
+                      <div className="px-1 py-2"> {/* Adjusted padding */}
+                        <p className="text-sm font-medium text-gray-800 truncate">{session.user?.name || "User"}</p>
+                        <p className="text-xs text-gray-500 truncate">{session.user?.email}</p>
+                      </div>
+                      {/* <Button variant="ghost" className="w-full justify-start" onClick={() => { setIsMenuOpen(false); router.push('/account-settings'); }} > // Example for navigation
+                        Account Settings
+                      </Button> */}
+                      <Button variant="ghost" className="w-full justify-start" onClick={() => { signOut(); setIsMenuOpen(false); }}>
+                        <LogOut className="mr-2 h-4 w-4" /> Sign Out
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" className="w-full justify-start" asChild>
+                        <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                          Sign In
+                        </Link>
+                      </Button>
+                      <Button variant="default" className="w-full" asChild> {/* Changed "legal" to "default" */}
+                        <Link href="/auth/signup" onClick={() => setIsMenuOpen(false)}>
+                          Sign Up
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
