@@ -1,0 +1,259 @@
+# EquiSplit - Community Property Calculator PRD
+
+## Executive Summary
+
+**Product Name:** EquiSplit
+**Version:** 1.0 MVP
+**Target Launch:** Q4 2025
+**Platform:** Web Application (React/Next.js 14)
+
+EquiSplit is a comprehensive web application that helps users understand community property division during divorce proceedings across all 50 US states. The platform provides accurate calculations, court-admissible document generation, and state-specific legal guidance while maintaining strict compliance with legal and financial regulations.
+
+## Vision Statement
+
+To democratize access to accurate property division calculations and empower individuals with the knowledge and tools they need for fair divorce settlements, while providing legal professionals with efficient calculation and documentation tools.
+
+## Core Objectives
+
+1. **Legal Compliance**: Provide legally accurate calculations for all 50 states without practicing law
+2. **User Empowerment**: Enable users to understand their financial position before engaging attorneys
+3. **Court-Ready Documents**: Generate admissible documentation for legal proceedings
+4. **Cost Savings**: Reduce legal fees through accurate self-service calculations
+5. **Professional Tools**: Offer subscription-based tools for legal professionals
+
+## Target Users
+
+### Primary Users
+- **Divorcing Individuals**: People seeking to understand their property division rights
+- **Legal Professionals**: Attorneys and paralegals needing efficient calculation tools
+- **Financial Advisors**: Professionals helping clients through divorce financial planning
+
+### Secondary Users
+- **Mediators**: Facilitating fair property division discussions
+- **Real Estate Professionals**: Understanding property division impacts
+- **Insurance Agents**: Calculating coverage needs post-divorce
+
+## Market Analysis
+
+### Community Property States (9)
+Arizona, California, Idaho, Louisiana, Nevada, New Mexico, Texas, Washington, Wisconsin
+- Generally 50/50 division with state-specific variations
+- Income from separate property handling varies by state
+
+### Equitable Distribution States (41 + DC)
+- Factor-based calculations considering marriage length, contributions, age, health
+- Percentage ranges: 40/60 to 50/50 based on circumstances
+
+### Market Size
+- 750,000+ divorces annually in the US
+- Average legal fees: $7,000-$15,000 per divorce
+- Growing DIY legal market: $2.8B annually
+
+## Core Features
+
+### 1. Multi-State Calculator Engine
+- **Community Property Calculations**: 50/50 splits with state-specific adjustments
+- **Equitable Distribution**: Factor-based calculations for 41 states + DC
+- **Mixed Property Handling**: Separate vs. marital property classification
+- **Real-time Validation**: Immediate feedback on user inputs
+
+### 2. Interactive Questionnaire System
+- **Progressive Disclosure**: Complex concepts broken into manageable steps
+- **Progress Tracking**: Visual progress indicators and save/resume functionality
+- **State-Specific Questions**: Tailored forms based on jurisdiction
+- **Input Validation**: Real-time error checking with helpful guidance
+
+### 3. Document Processing & Input
+- **PDF Upload & Parsing**: Automatic extraction of financial data
+- **OCR Support**: Text recognition from scanned documents
+- **CSV Import**: Bulk financial data import with validation
+- **Screenshot Processing**: Extract data from financial app screenshots
+- **Manual Data Entry**: Comprehensive form-based input system
+
+### 4. Court-Admissible Document Generation
+- **Marital Settlement Agreements**: State-specific legal formatting
+- **Financial Affidavits**: Complete asset and debt disclosure forms
+- **Property Division Worksheets**: Detailed calculation breakdowns
+- **PDF Export**: Professional formatting with digital signatures support
+
+### 5. Authentication & Security
+- **Multi-Provider SSO**: Apple, Google, Microsoft, Email authentication
+- **Two-Factor Authentication**: Optional TOTP with recovery codes
+- **Data Encryption**: Field-level encryption for sensitive financial data
+- **Audit Trails**: Comprehensive logging for legal compliance
+
+### 6. Payment Processing
+- **Freemium Model**: Basic calculations free, premium features paid
+- **Subscription Tiers**: Consumer, Professional, Enterprise levels
+- **One-time Purchases**: Individual document generation fees
+- **Stripe Integration**: Secure payment processing with PCI compliance
+
+### 7. Q&A Interactive System
+- **Legal Information Database**: Searchable knowledge base
+- **Interactive Chat**: Guided Q&A to keep users engaged
+- **State-Specific Guidance**: Jurisdiction-specific information
+- **Video Tutorials**: Complex concept explanations
+
+## Technical Architecture
+
+### Frontend Stack
+- **Framework**: Next.js 14 with App Router and Server Components
+- **UI Library**: Tailwind CSS with custom component system
+- **State Management**: Zustand for complex calculation state
+- **Form Handling**: React Hook Form with Zod validation
+- **File Processing**: React Dropzone with preview capabilities
+
+### Backend Infrastructure
+- **Database**: PostgreSQL 15+ with field-level encryption
+- **Authentication**: NextAuth.js v5 with multiple providers
+- **Payment Processing**: Stripe Connect for subscriptions
+- **File Storage**: AWS S3 with encryption at rest
+- **API Security**: Rate limiting and request validation
+
+### Document Processing
+- **PDF Parsing**: PDF-lib and pdf2pic for document processing
+- **OCR Engine**: Tesseract.js for text recognition
+- **CSV Processing**: PapaParse with validation schemas
+- **Document Generation**: React-PDF for court documents
+
+### Security & Compliance
+- **Data Protection**: AES-256 encryption for sensitive data
+- **Legal Compliance**: UPL safeguards and proper disclaimers
+- **Privacy**: GDPR/CCPA compliant data handling
+- **Audit Logging**: Comprehensive activity tracking
+
+## User Experience Flow
+
+### 1. Onboarding
+1. User selects their state
+2. Account creation with preferred authentication method
+3. Legal disclaimer acceptance
+4. Tutorial on tool capabilities and limitations
+
+### 2. Data Collection
+1. Basic information (marriage dates, state, children)
+2. Asset inventory with multiple input methods
+3. Debt categorization and valuation
+4. Document upload and processing
+5. Review and validation of all inputs
+
+### 3. Calculation & Results
+1. Real-time calculation updates as data is entered
+2. State-specific algorithm application
+3. Detailed breakdown of division methodology
+4. What-if scenario modeling
+5. Results export and sharing options
+
+### 4. Document Generation
+1. Template selection based on state requirements
+2. Data population and review
+3. Legal disclaimer insertion
+4. PDF generation with professional formatting
+5. Digital signature preparation
+
+## Business Model
+
+### Revenue Streams
+1. **Freemium Subscriptions**: $19/month for enhanced features
+2. **Professional Licenses**: $99/month for multi-client usage
+3. **One-time Document Fees**: $29-$99 per court document
+4. **White-label Licensing**: Custom pricing for law firms
+5. **API Access**: Developer tier for integration partners
+
+### Pricing Strategy
+- **Free Tier**: Basic calculation, limited features
+- **Premium Individual**: $19/month, unlimited calculations, documents
+- **Professional**: $99/month, multi-client support, advanced features
+- **Enterprise**: Custom pricing, white-label options
+
+## Legal Compliance Framework
+
+### UPL (Unauthorized Practice of Law) Safeguards
+- Clear disclaimers on every page
+- Information vs. advice distinction
+- User retains all decision-making authority
+- No document interpretation or legal recommendations
+
+### Required Disclaimers
+- "This software provides educational calculations only"
+- "Does not constitute legal advice"
+- "Consult qualified legal professionals for specific guidance"
+- State-specific legal requirement notices
+
+### Data Security Requirements
+- SOC 2 Type II compliance
+- PCI DSS Level 3 for payment processing
+- GDPR/CCPA data protection compliance
+- Attorney-client privilege protections where applicable
+
+## Success Metrics
+
+### User Engagement
+- **User Registration**: 10,000 users in first 6 months
+- **Calculation Completion**: 70% completion rate for full calculations
+- **Document Generation**: 40% of users generate documents
+- **Return Usage**: 60% return within 30 days
+
+### Business Metrics
+- **Revenue**: $50K ARR by month 12
+- **Conversion Rate**: 15% free-to-paid conversion
+- **Customer Lifetime Value**: $180 average
+- **Professional Adoption**: 50 law firms using professional tier
+
+### Technical Performance
+- **Page Load Speed**: <2 seconds for calculation pages
+- **Uptime**: 99.9% availability
+- **Security**: Zero data breaches
+- **Calculation Accuracy**: >99% accuracy rate verified by legal review
+
+## Implementation Roadmap
+
+### Phase 1: Foundation (Months 1-2)
+- Core calculation engine for all 50 states
+- Basic UI/UX with state selection
+- User authentication system
+- Database schema and security infrastructure
+
+### Phase 2: MVP Launch (Months 3-4)
+- Complete questionnaire system
+- Document upload and processing
+- Basic document generation
+- Payment processing integration
+- Legal compliance implementation
+
+### Phase 3: Enhancement (Months 5-6)
+- Advanced document generation
+- Q&A system implementation
+- Mobile optimization
+- Performance optimization
+- Beta testing with legal professionals
+
+### Phase 4: Growth (Months 7-12)
+- Professional tier features
+- White-label platform development
+- API development for partners
+- Advanced analytics and reporting
+- Marketing and user acquisition
+
+## Risk Mitigation
+
+### Legal Risks
+- **Mitigation**: Comprehensive legal review, proper disclaimers
+- **Insurance**: Professional liability and E&O coverage
+- **Compliance**: Regular legal compliance audits
+
+### Technical Risks
+- **Data Security**: Multi-layer encryption and security monitoring
+- **Calculation Accuracy**: Extensive testing and legal validation
+- **Scalability**: Cloud-native architecture with auto-scaling
+
+### Business Risks
+- **Market Competition**: Focus on user experience and accuracy
+- **Regulatory Changes**: Flexible architecture for law updates
+- **User Adoption**: Freemium model to reduce barrier to entry
+
+## Conclusion
+
+EquiSplit represents a significant opportunity to democratize access to property division calculations while creating a sustainable business serving both consumers and legal professionals. The comprehensive technical architecture, legal compliance framework, and phased implementation approach position the product for success in the growing legal technology market.
+
+The focus on accuracy, user experience, and legal compliance will establish EquiSplit as the trusted platform for property division calculations across all 50 states, ultimately saving users significant legal costs while providing attorneys with efficient professional tools.

@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-import { CalculationInput, PropertyDivision, PersonalInfoFormData, PropertyDebtSummaryPayload, Asset, Debt, StepFormData, MarriageInfo, USState, EquitableDistributionFactors } from '@/types';
+import { CalculationInput, PropertyDivision, PersonalInfoForm, PropertyDebtSummaryPayload, Asset, Debt, StepFormData, MarriageInfo, USState, EquitableDistributionFactors } from '@/types';
 import { calculatePropertyDivision } from '@/utils/calculations';
 import { generatePropertyDebtSummaryPayload } from '@/utils/documentPayloadTransformer';
 import { useMultiStepForm } from '@/hooks/useMultiStepForm'; // To get storage key or form structure
@@ -43,21 +43,22 @@ export default function ResultsPage() {
       // This is a simplified reconstruction. A more robust approach might involve
       // dedicated logic or ensuring form steps store data with clear keys.
       const personalInfoStepData = steps.find(s => s.step === 1)?.data || {};
-      const personalInfo: PersonalInfoFormData = {
+      const personalInfo: PersonalInfoForm = {
         firstName: personalInfoStepData.firstName || "Spouse 1",
         lastName: personalInfoStepData.lastName || "",
         spouseFirstName: personalInfoStepData.spouseFirstName || "Spouse 2",
         spouseLastName: personalInfoStepData.spouseLastName || "",
-        // Add other PersonalInfoFormData fields if they are needed by getSpouseNames
+        spouseDateOfBirth: personalInfoStepData.spouseDateOfBirth || new Date(),
+        // Add other PersonalInfoForm fields if they are needed by getSpouseNames
         // For now, names are the most critical for the payload.
-        // The rest of PersonalInfoFormData isn't directly used by generatePropertyDebtSummaryPayload
+        // The rest of PersonalInfoForm isn't directly used by generatePropertyDebtSummaryPayload
         // apart from what's already in CalculationInput.marriageInfo.
-        email: personalInfoStepData.email, // Example, may not be needed for PDF
-        dateOfBirth: personalInfoStepData.dateOfBirth, // Example
-        jurisdiction: personalInfoStepData.jurisdiction, // Used for marriageInfo
-        marriageDate: personalInfoStepData.marriageDate, // Used for marriageInfo
-        separationDate: personalInfoStepData.separationDate, // Used for marriageInfo
-        currentStatus: personalInfoStepData.currentStatus, // Example
+        email: personalInfoStepData.email || "",
+        dateOfBirth: personalInfoStepData.dateOfBirth || new Date(),
+        jurisdiction: personalInfoStepData.jurisdiction || 'CA',
+        marriageDate: personalInfoStepData.marriageDate || new Date(),
+        separationDate: personalInfoStepData.separationDate,
+        currentStatus: personalInfoStepData.currentStatus || 'separated'
       };
 
       // Reconstruct CalculationInput
@@ -227,7 +228,7 @@ export default function ResultsPage() {
     ];
     if (s.equalizationPayment && s.equalizationPayment.amount !== 0) {
       summaryItems.push(null);
-      summaryItems.push({ label: "Equalization Payment:", value: `${currencyFormat(s.equalizationPayment.amount)} from ${s.equalizationPayment.fromSpouse} to ${s.equalizationPayment.toSpouse}`, bold: true, span: true });
+      summaryItems.push({ label: "Equalization Payment:", value: `${currencyFormat(s.equalizationPayment.amount)} from ${s.equalizationPayment.fromSpouse} to ${s.equalizationPayment.toSpouse}`, bold: true });
     }
 
     summaryItems.forEach(item => {
@@ -236,20 +237,16 @@ export default function ResultsPage() {
       }
       const xPos = item.indent ? margin + 10 : margin;
       doc.setFont("helvetica", item.bold ? "bold" : "normal");
-      if (item.span) {
-         addTextAndAdvanceY(`${item.label} ${item.value}`, xPos, {fontSize: 10});
-      } else {
-         addTextAndAdvanceY(`${item.label}`, xPos, {fontSize: 10});
-         addTextAndAdvanceY(item.value, margin + 150 > pageWidth - margin - 50 ? pageWidth - margin - 50 : margin + 150 , {fontSize: 10, align: "left"}, -((10 * 0.7) + 2)); // Place value on same line, then advance Y
-      }
+      addTextAndAdvanceY(`${item.label}`, xPos, {fontSize: 10});
+      addTextAndAdvanceY(item.value, margin + 150 > pageWidth - margin - 50 ? pageWidth - margin - 50 : margin + 150 , {fontSize: 10, align: "left"}, -((10 * 0.7) + 2)); // Place value on same line, then advance Y
     });
     ensureSpace(15);
 
     // ==== Tables ====
-    const tableStyles = { fontSize: 9, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.5 };
-    const headStyles = { fillColor: [22, 160, 133], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 10, cellPadding: 3 };
+    const tableStyles = { fontSize: 9, cellPadding: 2.5, lineColor: [200, 200, 200] as [number, number, number], lineWidth: 0.5 };
+    const headStyles = { fillColor: [22, 160, 133] as [number, number, number], textColor: 255, fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 10, cellPadding: 3 };
     const bodyStyles = { textColor: 50, fontSize: 9 };
-    const alternateRowStyles = { fillColor: [240, 240, 240] };
+    const alternateRowStyles = { fillColor: [240, 240, 240] as [number, number, number] };
 
     const addTableToPdf = (title: string, head: any[], body: any[][], columnStyles: any = {}) => {
         const estBodyHeight = body.length * (tableStyles.fontSize + tableStyles.cellPadding * 2);
