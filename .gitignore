@@ -40,24 +40,48 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Added by Task Master AI
-# Logs
-logs
-*.log
-dev-debug.log
-# Dependency directories
-node_modules/
-# Environment variables
-.env
-# Editor directories and files
-.idea
-.vscode
+# Development Tools & AI Assistants
+.cursor/
+.roo/
+.roomodes
+.taskmaster/
+.windsurfrules
+
+# Temporary Files & Notes
+temp/
+*.tmp
+*.temp
+
+# IDE & Editor Files
+.idea/
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-# OS specific
-# Task files
-tasks.json
-tasks/ 
+
+# OS Specific Files
+.DS_Store
+Thumbs.db
+*~
+
+# Logs
+logs/
+*.log
+dev-debug.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads & Generated Files
+uploads/
+generated/
+dist/
+
+# Test Files
+coverage/
+.nyc_output/
+test-results/ 

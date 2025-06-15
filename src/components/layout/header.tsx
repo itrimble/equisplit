@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Scale, Menu, X, Shield, Lock } from 'lucide-react';
+import { UserMenu } from '@/components/auth/user-menu';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -51,14 +52,7 @@ export function Header() {
               <Lock className="h-4 w-4" />
               <span>Encrypted</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Button variant="ghost" asChild>
-                <Link href="/auth/signin">Sign In</Link>
-              </Button>
-              <Button variant="legal" asChild>
-                <Link href="/auth/signup">Get Started</Link>
-              </Button>
-            </div>
+            <UserMenu />
           </div>
 
           {/* Mobile menu button */}

@@ -215,3 +215,18 @@ Contact: licensing@equisplit.com
 **Built with ❤️ and ⚖️ for the legal technology community**
 
 *Last updated: May 24, 2025*
+
+## Memories
+- never overwrite CLAUDE.md , append it
+- update memory after every taskmaster implementation task
+- if I say anything with next task, I am referring to taskmaster
+- Authentication system fully implemented with NextAuth.js v5 (December 15, 2024)
+- Security & Compliance Implementation completed (December 15, 2024)
+- API Routes Implementation completed with comprehensive endpoints (December 15, 2024)
+- Task 10: Security & Compliance Implementation completed with comprehensive security framework (December 15, 2024)
+- make sure documentation is created in the @docs/ folder
+- when you update CLAUDE.md, do NOT append the docs to the CLAUDE.md , they should be in the @docs/ folder
+
+---
+
+[rest of the file remains the same]
