@@ -62,7 +62,6 @@ temp/
 *.sw?
 
 # OS Specific Files
-.DS_Store
 Thumbs.db
 *~
 
@@ -76,12 +75,14 @@ dev-debug.log
 *.sqlite
 *.sqlite3
 
-# Uploads & Generated Files
+# Generated Files
 uploads/
 generated/
 dist/
+/src/generated/prisma
 
 # Test Files
 coverage/
 .nyc_output/
-test-results/ 
+test-results/
+playwright-report/

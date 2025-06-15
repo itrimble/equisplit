@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // Can be "sqlite" for development
   url      = env("DATABASE_URL")
 }
 
@@ -17,6 +17,7 @@ model User {
   emailVerified    DateTime?
   name             String?
   image            String?
+  hashedPassword   String?         // For credentials provider
   role             UserRole        @default(USER)
   subscriptionStatus String?       @default("free")
   subscriptionTier SubscriptionTier @default(FREE)
@@ -45,12 +46,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -78,303 +79,201 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-// Core Calculation Models
+// Calculation Data Models
 model Calculation {
-  id                  String               @id @default(cuid())
-  userId              String
-  title               String?
-  jurisdiction        USState
-  propertyRegime      PropertyRegime
-  status              CalculationStatus    @default(DRAFT)
+  id               String           @id @default(cuid())
+  userId           String
+  inputData        Json             // Encrypted calculation inputs
+  results          Json             // Encrypted calculation results
+  state            String           // US state where filing
+  calculationType  CalculationType  @default(EQUITABLE_DISTRIBUTION)
+  confidenceLevel  Float
+  spouse1Share     Float
+  spouse2Share     Float
+  totalAssets      Float
+  totalDebts       Float
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  completedAt      DateTime?
   
-  // Marriage Information (encrypted fields)
-  marriageDate        DateTime
-  separationDate      DateTime?
-  hasPrenup          Boolean              @default(false)
-  specialCircumstances String[]           @default([])
-  
-  // Calculation Results (encrypted)
-  resultsJson         String?              // JSON blob of PropertyDivision results
-  confidenceLevel     Float?
-  
-  // Equitable Distribution Factors (encrypted JSON)
-  edFactorsJson       String?              // Serialized EquitableDistributionFactors
-  
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  completedAt         DateTime?
-
   // Relationships
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assets              Asset[]
-  debts               Debt[]
-  documents           Document[]
-  auditLogs           AuditLog[]
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents        Document[]
+  auditLogs        AuditLog[]
 
   @@map("calculations")
 }
 
 model Asset {
-  id                     String      @id @default(cuid())
-  userId                 String
-  calculationId          String?
-  type                   AssetType
-  description            String      // Encrypted
-  currentValue           Float       // Encrypted
-  acquisitionDate        DateTime?
-  acquisitionValue       Float?      // Encrypted
-  isSeparateProperty     Boolean     @default(false)
-  ownedBy                AssetOwnership?
-  isQuasiCommunityProperty Boolean    @default(false)
-  supportingDocuments    String[]    @default([]) // File paths/URLs
-  notes                  String?     // Encrypted
+  id           String        @id @default(cuid())
+  userId       String
+  calculationId String?
+  name         String
+  description  String?
+  value        Float
+  assetType    AssetType
+  isMarital    Boolean       @default(true)
+  acquisitionDate DateTime?
+  appraisalDate DateTime?
+  metadata     Json?         // Additional asset-specific data
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   
-  createdAt              DateTime    @default(now())
-  updatedAt              DateTime    @updatedAt
-
   // Relationships
-  user                   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  calculation            Calculation? @relation(fields: [calculationId], references: [id], onDelete: SetNull)
-  auditLogs              AuditLog[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[]
 
   @@map("assets")
 }
 
 model Debt {
-  id                  String         @id @default(cuid())
-  userId              String
-  calculationId       String?
-  type                DebtType
-  description         String         // Encrypted
-  currentBalance      Float          // Encrypted
-  originalAmount      Float?         // Encrypted
-  acquisitionDate     DateTime?
-  isSeparateProperty  Boolean        @default(false)
-  responsibility      AssetOwnership?
-  supportingDocuments String[]       @default([])
-  notes               String?        // Encrypted
+  id           String        @id @default(cuid())
+  userId       String
+  calculationId String?
+  name         String
+  description  String?
+  amount       Float
+  debtType     DebtType
+  isMarital    Boolean       @default(true)
+  incurredDate DateTime?
+  creditor     String?
+  accountNumber String?      // Encrypted
+  metadata     Json?         // Additional debt-specific data
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-
   // Relationships
-  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  calculation         Calculation?   @relation(fields: [calculationId], references: [id], onDelete: SetNull)
-  auditLogs           AuditLog[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[]
 
   @@map("debts")
 }
 
-// Document Management
 model Document {
-  id             String         @id @default(cuid())
-  userId         String
-  calculationId  String?
-  type           DocumentType
-  title          String
-  filename       String
-  filePath       String         // Encrypted file path
-  mimeType       String
-  fileSize       Int
-  status         DocumentStatus @default(DRAFT)
+  id              String         @id @default(cuid())
+  userId          String
+  calculationId   String?
+  fileName        String
+  fileType        DocumentType
+  filePath        String         // Encrypted file storage path
+  fileSize        Int
+  generatedAt     DateTime       @default(now())
+  metadata        Json?          // Document-specific metadata
+  isTemplate      Boolean        @default(false)
+  templateVersion String?
   
-  // Court document metadata
-  isCourtReady   Boolean        @default(false)
-  jurisdiction   USState?
-  generatedAt    DateTime?
-  
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
   // Relationships
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  calculation    Calculation?   @relation(fields: [calculationId], references: [id], onDelete: SetNull)
-  auditLogs      AuditLog[]
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calculation     Calculation?   @relation(fields: [calculationId], references: [id], onDelete: SetNull)
+  auditLogs       AuditLog[]
 
   @@map("documents")
 }
 
-// Security and Compliance
+// Audit and Security Models
 model AuditLog {
-  id             String      @id @default(cuid())
-  userId         String?     // Optional for anonymous actions
-  sessionId      String?     // Session identifier
-  action         AuditAction
-  resource       String      // Table name or resource identifier
-  resourceId     String?     // ID of the affected resource
-  details        String?     // JSON with action details
-  detailsHash    String?     // SHA-256 hash for integrity verification
-  ipAddress      String?     
-  userAgent      String?     
-  complianceLevel ComplianceLevel @default(STANDARD)
-  timestamp      DateTime    @default(now())
+  id            String         @id @default(cuid())
+  userId        String?
+  action        AuditAction
+  resourceType  String
+  resourceId    String?
+  details       Json           // Encrypted audit details
+  ipAddress     String?        // Encrypted
+  userAgent     String?        // Encrypted
+  sessionId     String?
+  timestamp     DateTime       @default(now())
+  severity      LogSeverity    @default(INFO)
   
-  // Relationships (optional foreign keys for context)
-  calculationId  String?
-  assetId        String?
-  debtId         String?
-  documentId     String?
-  
-  createdAt      DateTime    @default(now())
-
   // Relationships
-  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  calculation    Calculation? @relation(fields: [calculationId], references: [id], onDelete: SetNull)
-  asset          Asset?       @relation(fields: [assetId], references: [id], onDelete: SetNull)
-  debt           Debt?        @relation(fields: [debtId], references: [id], onDelete: SetNull)
-  document       Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  calculation   Calculation?   @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+  asset         Asset?         @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+  debt          Debt?          @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+  document      Document?      @relation(fields: [resourceId], references: [id], onDelete: SetNull)
 
-  // Index for performance
-  @@index([userId, timestamp])
-  @@index([action, timestamp])
-  @@index([complianceLevel, timestamp])
   @@map("audit_logs")
+}
+
+// Subscription and Payment Models
+model Subscription {
+  id                String              @id @default(cuid())
+  userId            String
+  stripeSubscriptionId String           @unique
+  tier              SubscriptionTier
+  status            SubscriptionStatus
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@map("subscriptions")
 }
 
 // Enums
 enum UserRole {
   USER
+  PREMIUM
   PROFESSIONAL
-  ENTERPRISE
   ADMIN
-
-  @@map("user_role")
 }
 
 enum SubscriptionTier {
   FREE
+  BASIC
+  PREMIUM
   PROFESSIONAL
   ENTERPRISE
-
-  @@map("subscription_tier")
 }
 
-enum USState {
-  AL
-  AK
-  AZ
-  AR
-  CA
-  CO
-  CT
-  DE
-  FL
-  GA
-  HI
-  ID
-  IL
-  IN
-  IA
-  KS
-  KY
-  LA
-  ME
-  MD
-  MA
-  MI
-  MN
-  MS
-  MO
-  MT
-  NE
-  NV
-  NH
-  NJ
-  NM
-  NY
-  NC
-  ND
-  OH
-  OK
-  OR
-  PA
-  RI
-  SC
-  SD
-  TN
-  TX
-  UT
-  VT
-  VA
-  WA
-  WV
-  WI
-  WY
-  DC
-
-  @@map("us_state")
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  UNPAID
 }
 
-enum PropertyRegime {
-  COMMUNITY
-  EQUITABLE
-
-  @@map("property_regime")
+enum CalculationType {
+  COMMUNITY_PROPERTY
+  EQUITABLE_DISTRIBUTION
 }
 
 enum AssetType {
   REAL_ESTATE
   VEHICLE
-  BANK_ACCOUNT
   INVESTMENT_ACCOUNT
   RETIREMENT_ACCOUNT
-  BUSINESS_INTEREST
+  BANK_ACCOUNT
   PERSONAL_PROPERTY
-  CRYPTOCURRENCY
-  INSURANCE
+  BUSINESS_INTEREST
+  INTELLECTUAL_PROPERTY
+  INHERITANCE
+  GIFT
   OTHER
-
-  @@map("asset_type")
 }
 
 enum DebtType {
   MORTGAGE
-  VEHICLE_LOAN
   CREDIT_CARD
   STUDENT_LOAN
-  BUSINESS_DEBT
+  AUTO_LOAN
   PERSONAL_LOAN
+  BUSINESS_DEBT
+  TAX_DEBT
   OTHER
-
-  @@map("debt_type")
-}
-
-enum AssetOwnership {
-  SPOUSE1
-  SPOUSE2
-  JOINT
-
-  @@map("asset_ownership")
-}
-
-enum CalculationStatus {
-  DRAFT
-  IN_PROGRESS
-  COMPLETED
-  ARCHIVED
-
-  @@map("calculation_status")
 }
 
 enum DocumentType {
   MARITAL_SETTLEMENT_AGREEMENT
   FINANCIAL_AFFIDAVIT
-  PROPERTY_DEBT_SUMMARY
+  PROPERTY_INVENTORY
+  DEBT_SCHEDULE
+  CALCULATION_REPORT
   SUPPORTING_DOCUMENT
-  COURT_FILING
   OTHER
-
-  @@map("document_type")
-}
-
-enum DocumentStatus {
-  DRAFT
-  GENERATED
-  REVIEWED
-  FILED
-  APPROVED
-
-  @@map("document_status")
 }
 
 enum AuditAction {
@@ -385,17 +284,17 @@ enum AuditAction {
   LOGIN
   LOGOUT
   CALCULATE
-  DOWNLOAD
-  PAYMENT
-  EXPORT
-
-  @@map("audit_action")
+  GENERATE_DOCUMENT
+  EXPORT_DATA
+  CHANGE_PASSWORD
+  ENABLE_MFA
+  DISABLE_MFA
 }
 
-enum ComplianceLevel {
-  STANDARD
-  FINANCIAL
-  LEGAL
-
-  @@map("compliance_level")
+enum LogSeverity {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
 }

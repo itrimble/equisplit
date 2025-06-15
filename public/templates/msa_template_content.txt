@@ -1,0 +1,120 @@
+Marital Settlement Agreement
+
+This Marital Settlement Agreement ("Agreement") is made and entered into this ____ day of _______________, 20__, by and between:
+
+Spouse 1: {{spouse1_name}}
+Address: {{spouse1_address_placeholder}}
+
+and
+
+Spouse 2: {{spouse2_name}}
+Address: {{spouse2_address_placeholder}}
+
+I. RECITALS
+
+A. Marriage Details
+Date of Marriage: {{marriage_date}}
+Date of Separation: {{separation_date}}
+Jurisdiction: This agreement is made with reference to the laws of the State of {{jurisdiction_state}}.
+
+II. DIVISION OF ASSETS
+
+A. Marital Assets Awarded to {{spouse1_name}}
+The following marital assets shall be awarded to {{spouse1_name}} as their sole and separate property:
+{{#marital_assets_s1}}
+- {{description}} (Approximate Value: ${{value_s1}})
+{{/marital_assets_s1}}
+{{^marital_assets_s1}}
+None specified or awarded.
+{{/marital_assets_s1}}
+
+B. Marital Assets Awarded to {{spouse2_name}}
+The following marital assets shall be awarded to {{spouse2_name}} as their sole and separate property:
+{{#marital_assets_s2}}
+- {{description}} (Approximate Value: ${{value_s2}})
+{{/marital_assets_s2}}
+{{^marital_assets_s2}}
+None specified or awarded.
+{{/marital_assets_s2}}
+
+C. {{spouse1_name}}'s Separate Assets
+The following assets are confirmed as the sole and separate property of {{spouse1_name}}:
+{{#separate_assets_s1}}
+- {{description}} (Approximate Value: ${{value}})
+{{/separate_assets_s1}}
+{{^separate_assets_s1}}
+None specified.
+{{/separate_assets_s1}}
+
+D. {{spouse2_name}}'s Separate Assets
+The following assets are confirmed as the sole and separate property of {{spouse2_name}}:
+{{#separate_assets_s2}}
+- {{description}} (Approximate Value: ${{value}})
+{{/separate_assets_s2}}
+{{^separate_assets_s2}}
+None specified.
+{{/separate_assets_s2}}
+
+III. DIVISION OF DEBTS
+
+A. Marital Debts Assigned to {{spouse1_name}}
+{{spouse1_name}} shall be solely responsible for the following marital debts:
+{{#marital_debts_s1}}
+- {{description}} (Approximate Balance: ${{balance_s1}})
+{{/marital_debts_s1}}
+{{^marital_debts_s1}}
+None specified or assigned.
+{{/marital_debts_s1}}
+
+B. Marital Debts Assigned to {{spouse2_name}}
+{{spouse2_name}} shall be solely responsible for the following marital debts:
+{{#marital_debts_s2}}
+- {{description}} (Approximate Balance: ${{balance_s2}})
+{{/marital_debts_s2}}
+{{^marital_debts_s2}}
+None specified or assigned.
+{{/marital_debts_s2}}
+
+C. {{spouse1_name}}'s Separate Debts
+The following debts are confirmed as the sole and separate responsibility of {{spouse1_name}}:
+{{#separate_debts_s1}}
+- {{description}} (Approximate Balance: ${{balance}})
+{{/separate_debts_s1}}
+{{^separate_debts_s1}}
+None specified.
+{{/separate_debts_s1}}
+
+D. {{spouse2_name}}'s Separate Debts
+The following debts are confirmed as the sole and separate responsibility of {{spouse2_name}}:
+{{#separate_debts_s2}}
+- {{description}} (Approximate Balance: ${{balance}})
+{{/separate_debts_s2}}
+{{^separate_debts_s2}}
+None specified.
+{{/separate_debts_s2}}
+
+IV. SPOUSAL SUPPORT
+
+{{spousal_support_details}}
+
+V. CHILD CUSTODY AND SUPPORT
+
+{{child_support_custody_details}}
+
+VI. GENERAL PROVISIONS
+
+A. Full Disclosure: Each party acknowledges that they have made a full and fair disclosure of all their assets and debts to the other party.
+B. Binding Agreement: This Agreement is the entire understanding between the parties and shall be binding upon them, their heirs, executors, administrators, and assigns.
+C. Governing Law: This Agreement shall be governed by and construed in accordance with the laws of the State of {{jurisdiction_state}}.
+D. Legal Review: EACH PARTY ACKNOWLEDGES THAT THEY HAVE HAD THE OPPORTUNITY TO CONSULT WITH INDEPENDENT LEGAL COUNSEL OF THEIR CHOOSING PRIOR TO SIGNING THIS AGREEMENT. THIS DRAFT DOCUMENT SHOULD BE REVIEWED BY LEGAL COUNSEL.
+
+VII. SIGNATURES
+
+________________________________________
+{{spouse1_name}}
+Date: _______________
+
+
+________________________________________
+{{spouse2_name}}
+Date: _______________

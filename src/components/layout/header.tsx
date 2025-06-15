@@ -56,7 +56,7 @@ export function Header() {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center"> {/* Added flex items-center */}
             <button
               type="button"
               className="text-gray-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -94,17 +94,8 @@ export function Header() {
                     <span>Bank-Level Security</span>
                   </div>
                 </div>
-                <div className="space-y-2 px-3">
-                  <Button variant="ghost" className="w-full justify-start" asChild>
-                    <Link href="/auth/signin" onClick={() => setIsMenuOpen(false)}>
-                      Sign In
-                    </Link>
-                  </Button>
-                  <Button variant="legal" className="w-full" asChild>
-                    <Link href="/auth/signup" onClick={() => setIsMenuOpen(false)}>
-                      Get Started Free
-                    </Link>
-                  </Button>
+                <div className="px-3">
+                  <UserMenu isMobile onClose={() => setIsMenuOpen(false)} />
                 </div>
               </div>
             </div>
