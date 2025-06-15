@@ -29,14 +29,44 @@ const specialCircumstancesSchema = z.object({
   ).optional(),
   healthSpouse1: healthStatusEnum.default("not_applicable"),
   healthSpouse2: healthStatusEnum.default("not_applicable"),
-  contributionDetailsSpouse1: z.string().optional(),
-  contributionDetailsSpouse2: z.string().optional(),
+  contributionDetailsSpouse1: z.string().optional(), // Existing: General contribution
+  contributionDetailsSpouse2: z.string().optional(), // Existing: General contribution
+
   domesticViolence: z.boolean().default(false),
   domesticViolenceDetails: z.string().optional(),
   wastingOfAssets: z.boolean().default(false),
   wastingOfAssetsDetails: z.string().optional(),
-  significantTaxConsequences: z.boolean().default(false),
+  significantTaxConsequences: z.boolean().default(false), // This corresponds to 'taxConsequences' in EquitableDistributionFactors
   significantTaxConsequencesDetails: z.string().optional(),
+
+  // New PA Fields
+  priorMarriageSpouse1: z.boolean().default(false).optional(),
+  priorMarriageSpouse2: z.boolean().default(false).optional(),
+  stationSpouse1: z.string().optional(),
+  stationSpouse2: z.string().optional(),
+  vocationalSkillsSpouse1: z.string().optional(),
+  vocationalSkillsSpouse2: z.string().optional(),
+  estateSpouse1: z.preprocess((val) => String(val === null || val === undefined ? '' : val).replace(/[^0-9]/g, ''),
+    z.string().optional().refine(val => val === '' || val === undefined || (parseInt(val, 10) >= 0), { message: "Estate value must be a positive number if provided." })
+  ).transform(val => val === '' || val === undefined ? undefined : parseInt(val, 10)).optional(),
+  estateSpouse2: z.preprocess((val) => String(val === null || val === undefined ? '' : val).replace(/[^0-9]/g, ''),
+    z.string().optional().refine(val => val === '' || val === undefined || (parseInt(val, 10) >= 0), { message: "Estate value must be a positive number if provided." })
+  ).transform(val => val === '' || val === undefined ? undefined : parseInt(val, 10)).optional(),
+  needsSpouse1: z.string().optional(),
+  needsSpouse2: z.string().optional(),
+  contributionToEducationTrainingSpouse1: z.boolean().default(false).optional(),
+  contributionToEducationTrainingSpouse2: z.boolean().default(false).optional(),
+  opportunityFutureAcquisitionsSpouse1: z.string().optional(),
+  opportunityFutureAcquisitionsSpouse2: z.string().optional(),
+  sourcesOfIncomeDetailsSpouse1: z.string().optional(),
+  sourcesOfIncomeDetailsSpouse2: z.string().optional(),
+  standardOfLiving: z.string().optional(),
+  economicCircumstancesAtDivorceSpouse1: z.string().optional(),
+  economicCircumstancesAtDivorceSpouse2: z.string().optional(),
+  expenseOfSaleAssets: z.preprocess((val) => String(val === null || val === undefined ? '' : val).replace(/[^0-9]/g, ''),
+    z.string().optional().refine(val => val === '' || val === undefined || (parseInt(val, 10) >= 0), { message: "Expense value must be a positive number if provided." })
+  ).transform(val => val === '' || val === undefined ? undefined : parseInt(val, 10)).optional(),
+
   otherSignificantCircumstances: z.string().optional(),
 })
 .superRefine((data, ctx) => {
@@ -71,6 +101,12 @@ export function SpecialCircumstancesStep({ data, onUpdate }: SpecialCircumstance
       domesticViolence: false,
       wastingOfAssets: false,
       significantTaxConsequences: false,
+      // PA Fields defaults
+      priorMarriageSpouse1: false,
+      priorMarriageSpouse2: false,
+      contributionToEducationTrainingSpouse1: false,
+      contributionToEducationTrainingSpouse2: false,
+      // Strings and numbers will default to undefined if not provided, which is fine.
     },
   });
 
@@ -255,11 +291,187 @@ export function SpecialCircumstancesStep({ data, onUpdate }: SpecialCircumstance
         <CardContent>
           <div>
             <Label htmlFor="otherSignificantCircumstances">Are there any other significant circumstances the calculator should consider for equitable distribution (if applicable in your state)?</Label>
-            <Textarea id="otherSignificantCircumstances" {...register("otherSignificantCircumstances")} placeholder="Describe any other factors" className={errors.otherSignificantCircumstances ? 'border-red-500' : ''} rows={4}/>
+            <Textarea id="otherSignificantCircumstances" {...register("otherSignificantCircumstances")} placeholder="Describe any other factors not covered above" className={errors.otherSignificantCircumstances ? 'border-red-500' : ''} rows={4}/>
             {errors.otherSignificantCircumstances && <p className="text-sm text-red-500 mt-1">{errors.otherSignificantCircumstances.message}</p>}
           </div>
         </CardContent>
       </Card>
+
+      {/* Pennsylvania Specific Factors - Grouped Logically */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Users className="h-6 w-6 mr-2 text-purple-600" /> {/* Example Icon Change */}
+            Background & Station (PA Specific)
+          </CardTitle>
+          <CardDescription>Factors relevant for Pennsylvania equitable distribution concerning prior marriages and life station.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center space-x-2">
+                <Controller name="priorMarriageSpouse1" control={control} render={({ field }) => <Switch id="priorMarriageSpouse1" checked={field.value} onCheckedChange={field.onChange} />} />
+                <Label htmlFor="priorMarriageSpouse1" className="cursor-pointer">Spouse 1: Prior Marriages?</Label>
+              </div>
+              {errors.priorMarriageSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.priorMarriageSpouse1.message}</p>}
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <Controller name="priorMarriageSpouse2" control={control} render={({ field }) => <Switch id="priorMarriageSpouse2" checked={field.value} onCheckedChange={field.onChange} />} />
+                <Label htmlFor="priorMarriageSpouse2" className="cursor-pointer">Spouse 2: Prior Marriages?</Label>
+              </div>
+              {errors.priorMarriageSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.priorMarriageSpouse2.message}</p>}
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="stationSpouse1">Spouse 1: Station in Life</Label>
+            <Textarea id="stationSpouse1" {...register("stationSpouse1")} placeholder="Describe Spouse 1's station (e.g., social standing, lifestyle if relevant)" className={errors.stationSpouse1 ? 'border-red-500' : ''} rows={2}/>
+            {errors.stationSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.stationSpouse1.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="stationSpouse2">Spouse 2: Station in Life</Label>
+            <Textarea id="stationSpouse2" {...register("stationSpouse2")} placeholder="Describe Spouse 2's station" className={errors.stationSpouse2 ? 'border-red-500' : ''} rows={2}/>
+            {errors.stationSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.stationSpouse2.message}</p>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <DollarSignIcon className="h-6 w-6 mr-2 text-green-600" /> {/* Example Icon Change */}
+            Vocational Skills, Estate & Needs (PA Specific)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <Label htmlFor="vocationalSkillsSpouse1">Spouse 1: Vocational Skills & Employability</Label>
+            <Textarea id="vocationalSkillsSpouse1" {...register("vocationalSkillsSpouse1")} placeholder="Describe skills and employability" className={errors.vocationalSkillsSpouse1 ? 'border-red-500' : ''} rows={2}/>
+            {errors.vocationalSkillsSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.vocationalSkillsSpouse1.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="vocationalSkillsSpouse2">Spouse 2: Vocational Skills & Employability</Label>
+            <Textarea id="vocationalSkillsSpouse2" {...register("vocationalSkillsSpouse2")} placeholder="Describe skills and employability" className={errors.vocationalSkillsSpouse2 ? 'border-red-500' : ''} rows={2}/>
+            {errors.vocationalSkillsSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.vocationalSkillsSpouse2.message}</p>}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="estateSpouse1">Spouse 1: Approx. Value of Separate Estate</Label>
+              <Input id="estateSpouse1" type="text" {...register("estateSpouse1")} inputMode="numeric" placeholder="e.g., 50000" className={errors.estateSpouse1 ? 'border-red-500' : ''}/>
+              {errors.estateSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.estateSpouse1.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="estateSpouse2">Spouse 2: Approx. Value of Separate Estate</Label>
+              <Input id="estateSpouse2" type="text" {...register("estateSpouse2")} inputMode="numeric" placeholder="e.g., 75000" className={errors.estateSpouse2 ? 'border-red-500' : ''}/>
+              {errors.estateSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.estateSpouse2.message}</p>}
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="needsSpouse1">Spouse 1: Specific Needs</Label>
+            <Textarea id="needsSpouse1" {...register("needsSpouse1")} placeholder="e.g., ongoing medical, educational" className={errors.needsSpouse1 ? 'border-red-500' : ''} rows={2}/>
+            {errors.needsSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.needsSpouse1.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="needsSpouse2">Spouse 2: Specific Needs</Label>
+            <Textarea id="needsSpouse2" {...register("needsSpouse2")} placeholder="e.g., ongoing medical, educational" className={errors.needsSpouse2 ? 'border-red-500' : ''} rows={2}/>
+            {errors.needsSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.needsSpouse2.message}</p>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card> {/* Updated "Contributions to Marriage" to include new PA fields */}
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Users className="h-6 w-6 mr-2 text-blue-600" />
+            Contributions & Future Opportunities (PA Specific)
+          </CardTitle>
+          <CardDescription>Contributions to education/training, and opportunities for future acquisitions and income.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Existing Contribution Details - Kept for general contributions */}
+          <div>
+            <Label htmlFor="contributionDetailsSpouse1">Your General Contributions (Spouse 1)</Label>
+            <Textarea id="contributionDetailsSpouse1" {...register("contributionDetailsSpouse1")} placeholder="e.g., Primary caregiver, supported spouse's education, managed household." className={errors.contributionDetailsSpouse1 ? 'border-red-500' : ''} rows={3}/>
+            {errors.contributionDetailsSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.contributionDetailsSpouse1.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="contributionDetailsSpouse2">Spouse's General Contributions (Spouse 2)</Label>
+            <Textarea id="contributionDetailsSpouse2" {...register("contributionDetailsSpouse2")} placeholder="e.g., Primary earner, significant career sacrifices for family, home improvements." className={errors.contributionDetailsSpouse2 ? 'border-red-500' : ''} rows={3}/>
+            {errors.contributionDetailsSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.contributionDetailsSpouse2.message}</p>}
+          </div>
+          <hr/> {/* Separator */}
+          {/* New PA Specific Contribution Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center space-x-2">
+                <Controller name="contributionToEducationTrainingSpouse1" control={control} render={({ field }) => <Switch id="contributionToEducationTrainingSpouse1" checked={field.value} onCheckedChange={field.onChange} />} />
+                <Label htmlFor="contributionToEducationTrainingSpouse1" className="cursor-pointer">Spouse 1 contributed to Spouse 2's education/training?</Label>
+              </div>
+              {errors.contributionToEducationTrainingSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.contributionToEducationTrainingSpouse1.message}</p>}
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <Controller name="contributionToEducationTrainingSpouse2" control={control} render={({ field }) => <Switch id="contributionToEducationTrainingSpouse2" checked={field.value} onCheckedChange={field.onChange} />} />
+                <Label htmlFor="contributionToEducationTrainingSpouse2" className="cursor-pointer">Spouse 2 contributed to Spouse 1's education/training?</Label>
+              </div>
+              {errors.contributionToEducationTrainingSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.contributionToEducationTrainingSpouse2.message}</p>}
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="opportunityFutureAcquisitionsSpouse1">Spouse 1: Opportunity for Future Acquisitions & Income</Label>
+            <Textarea id="opportunityFutureAcquisitionsSpouse1" {...register("opportunityFutureAcquisitionsSpouse1")} placeholder="Describe opportunity" className={errors.opportunityFutureAcquisitionsSpouse1 ? 'border-red-500' : ''} rows={2}/>
+            {errors.opportunityFutureAcquisitionsSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.opportunityFutureAcquisitionsSpouse1.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="opportunityFutureAcquisitionsSpouse2">Spouse 2: Opportunity for Future Acquisitions & Income</Label>
+            <Textarea id="opportunityFutureAcquisitionsSpouse2" {...register("opportunityFutureAcquisitionsSpouse2")} placeholder="Describe opportunity" className={errors.opportunityFutureAcquisitionsSpouse2 ? 'border-red-500' : ''} rows={2}/>
+            {errors.opportunityFutureAcquisitionsSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.opportunityFutureAcquisitionsSpouse2.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="sourcesOfIncomeDetailsSpouse1">Spouse 1: Other Sources of Income (Medical, Retirement, Insurance etc.)</Label>
+            <Textarea id="sourcesOfIncomeDetailsSpouse1" {...register("sourcesOfIncomeDetailsSpouse1")} placeholder="Detail other income sources" className={errors.sourcesOfIncomeDetailsSpouse1 ? 'border-red-500' : ''} rows={2}/>
+            {errors.sourcesOfIncomeDetailsSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.sourcesOfIncomeDetailsSpouse1.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="sourcesOfIncomeDetailsSpouse2">Spouse 2: Other Sources of Income (Medical, Retirement, Insurance etc.)</Label>
+            <Textarea id="sourcesOfIncomeDetailsSpouse2" {...register("sourcesOfIncomeDetailsSpouse2")} placeholder="Detail other income sources" className={errors.sourcesOfIncomeDetailsSpouse2 ? 'border-red-500' : ''} rows={2}/>
+            {errors.sourcesOfIncomeDetailsSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.sourcesOfIncomeDetailsSpouse2.message}</p>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card> {/* Updated "Conduct & Financial Factors" or New Card for Economic Context */}
+         <CardHeader>
+          <CardTitle className="flex items-center">
+            <DollarSignIcon className="h-6 w-6 mr-2 text-orange-500" /> {/* Example Icon Change */}
+            Economic Context & Living Standards (PA Specific)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <Label htmlFor="standardOfLiving">Standard of Living Established During Marriage</Label>
+            <Textarea id="standardOfLiving" {...register("standardOfLiving")} placeholder="Describe the marital standard of living" className={errors.standardOfLiving ? 'border-red-500' : ''} rows={2}/>
+            {errors.standardOfLiving && <p className="text-sm text-red-500 mt-1">{errors.standardOfLiving.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="economicCircumstancesAtDivorceSpouse1">Spouse 1: Economic Circumstances at Time of Divorce</Label>
+            <Textarea id="economicCircumstancesAtDivorceSpouse1" {...register("economicCircumstancesAtDivorceSpouse1")} placeholder="Describe circumstances" className={errors.economicCircumstancesAtDivorceSpouse1 ? 'border-red-500' : ''} rows={2}/>
+            {errors.economicCircumstancesAtDivorceSpouse1 && <p className="text-sm text-red-500 mt-1">{errors.economicCircumstancesAtDivorceSpouse1.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="economicCircumstancesAtDivorceSpouse2">Spouse 2: Economic Circumstances at Time of Divorce</Label>
+            <Textarea id="economicCircumstancesAtDivorceSpouse2" {...register("economicCircumstancesAtDivorceSpouse2")} placeholder="Describe circumstances" className={errors.economicCircumstancesAtDivorceSpouse2 ? 'border-red-500' : ''} rows={2}/>
+            {errors.economicCircumstancesAtDivorceSpouse2 && <p className="text-sm text-red-500 mt-1">{errors.economicCircumstancesAtDivorceSpouse2.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="expenseOfSaleAssets">Estimated Expense of Selling Assets (if a major factor)</Label>
+            <Input id="expenseOfSaleAssets" type="text" {...register("expenseOfSaleAssets")} inputMode="numeric" placeholder="e.g., 10000" className={errors.expenseOfSaleAssets ? 'border-red-500' : ''}/>
+            {errors.expenseOfSaleAssets && <p className="text-sm text-red-500 mt-1">{errors.expenseOfSaleAssets.message}</p>}
+            <p className="text-xs text-gray-500 mt-1">Overall estimated cost if significant assets need to be sold as part of the division.</p>
+          </div>
+        </CardContent>
+      </Card>
+
     </form>
   );
 }

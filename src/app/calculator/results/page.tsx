@@ -10,11 +10,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 import { CalculationInput, PropertyDivision, PersonalInfoForm, PropertyDebtSummaryPayload, Asset, Debt, StepFormData, MarriageInfo, USState, EquitableDistributionFactors } from '@/types';
-import { calculatePropertyDivision } from '@/utils/calculations';
+import { calculatePropertyDivision, calculateConfidenceLevel } from '@/utils/calculations';
 import { generatePropertyDebtSummaryPayload } from '@/utils/documentPayloadTransformer';
-import { useMultiStepForm } from '@/hooks/useMultiStepForm'; // To get storage key or form structure
+import { getStateInfo, isCommunityPropertyState } from '@/utils/states';
+import { useMultiStepForm } from '@/hooks/useMultiStepForm';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'; // Added Recharts imports
 
-const STORAGE_KEY = 'equisplit-calculator-v1'; // Ensure this matches useMultiStepForm
+const STORAGE_KEY = 'equisplit-calculator-v1';
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -22,6 +24,8 @@ export default function ResultsPage() {
   const [error, setError] = useState<string | null>(null);
   const [summaryPayload, setSummaryPayload] = useState<PropertyDebtSummaryPayload | null>(null);
   const [propertyDivisionResult, setPropertyDivisionResult] = useState<PropertyDivision | null>(null);
+  const [calculationInputForDisplay, setCalculationInputForDisplay] = useState<CalculationInput | null>(null);
+  const [confidenceLevel, setConfidenceLevel] = useState<number | null>(null); // Added state for confidence level
 
   useEffect(() => {
     setIsLoading(true);
@@ -87,20 +91,50 @@ export default function ResultsPage() {
       };
 
       const specialFactorsData = steps.find(s => s.step === 6)?.data || {};
-      const specialFactors: EquitableDistributionFactors = { // Map from specialFactorsData
-          marriageDuration: parseFloat(specialFactorsData.marriageDurationYears) || 0,
-          ageSpouse1: 0, // Placeholder - should come from personalInfo if needed by calc
-          ageSpouse2: 0, // Placeholder
+      const specialFactors: EquitableDistributionFactors = {
+          // Existing general factors
+          marriageDuration: typeof specialFactorsData.marriageDurationYears === 'number'
+                            ? specialFactorsData.marriageDurationYears
+                            : (specialFactorsData.marriageDurationYears ? parseFloat(specialFactorsData.marriageDurationYears) : 0), // Ensure it's a number, default 0
+          ageSpouse1: 0, // Placeholder - Data not from Step 6
+          ageSpouse2: 0, // Placeholder - Data not from Step 6
           healthSpouse1: specialFactorsData.healthSpouse1 || 'not_applicable',
           healthSpouse2: specialFactorsData.healthSpouse2 || 'not_applicable',
-          incomeSpouse1: 0, // Placeholder
-          incomeSpouse2: 0, // Placeholder
-          earnCapacitySpouse1: 0, // Placeholder
-          earnCapacitySpouse2: 0, // Placeholder
-          contributionToMarriage: `${specialFactorsData.contributionDetailsSpouse1 || ''} ${specialFactorsData.contributionDetailsSpouse2 || ''}`.trim(),
+          incomeSpouse1: 0, // Placeholder - Data not from Step 6
+          incomeSpouse2: 0, // Placeholder - Data not from Step 6
+          earnCapacitySpouse1: 0, // Placeholder - Data not from Step 6
+          earnCapacitySpouse2: 0, // Placeholder - Data not from Step 6
+          contributionToMarriage: `${specialFactorsData.contributionDetailsSpouse1 || ''} ${specialFactorsData.contributionDetailsSpouse2 || ''}`.trim(), // General contributions
+          custodyArrangement: specialFactorsData.custodyArrangement || undefined, // Assuming form might have this, though not explicitly added in PA task
           domesticViolence: specialFactorsData.domesticViolence || false,
           wastingOfAssets: specialFactorsData.wastingOfAssets || false,
-          taxConsequences: specialFactorsData.significantTaxConsequences || false,
+          taxConsequences: specialFactorsData.significantTaxConsequences || false, // Maps from form's 'significantTaxConsequences'
+
+          // New PA specific factors (ensure keys match those in specialCircumstancesSchema)
+          priorMarriageSpouse1: specialFactorsData.priorMarriageSpouse1 || false,
+          priorMarriageSpouse2: specialFactorsData.priorMarriageSpouse2 || false,
+          stationSpouse1: specialFactorsData.stationSpouse1 || undefined,
+          stationSpouse2: specialFactorsData.stationSpouse2 || undefined,
+          vocationalSkillsSpouse1: specialFactorsData.vocationalSkillsSpouse1 || undefined,
+          vocationalSkillsSpouse2: specialFactorsData.vocationalSkillsSpouse2 || undefined,
+
+          // Numeric PA fields - Zod schema in form step should ensure these are numbers or undefined
+          estateSpouse1: specialFactorsData.estateSpouse1, // Should be number or undefined
+          estateSpouse2: specialFactorsData.estateSpouse2, // Should be number or undefined
+
+          needsSpouse1: specialFactorsData.needsSpouse1 || undefined,
+          needsSpouse2: specialFactorsData.needsSpouse2 || undefined,
+          contributionToEducationTrainingSpouse1: specialFactorsData.contributionToEducationTrainingSpouse1 || false,
+          contributionToEducationTrainingSpouse2: specialFactorsData.contributionToEducationTrainingSpouse2 || false,
+          opportunityFutureAcquisitionsSpouse1: specialFactorsData.opportunityFutureAcquisitionsSpouse1 || undefined,
+          opportunityFutureAcquisitionsSpouse2: specialFactorsData.opportunityFutureAcquisitionsSpouse2 || undefined,
+          sourcesOfIncomeDetailsSpouse1: specialFactorsData.sourcesOfIncomeDetailsSpouse1 || undefined,
+          sourcesOfIncomeDetailsSpouse2: specialFactorsData.sourcesOfIncomeDetailsSpouse2 || undefined,
+          standardOfLiving: specialFactorsData.standardOfLiving || undefined,
+          economicCircumstancesAtDivorceSpouse1: specialFactorsData.economicCircumstancesAtDivorceSpouse1 || undefined,
+          economicCircumstancesAtDivorceSpouse2: specialFactorsData.economicCircumstancesAtDivorceSpouse2 || undefined,
+
+          expenseOfSaleAssets: specialFactorsData.expenseOfSaleAssets, // Should be number or undefined
       };
 
 
@@ -127,7 +161,11 @@ export default function ResultsPage() {
         setPropertyDivisionResult(divisionResult);
 
         const payload = generatePropertyDebtSummaryPayload(personalInfo, calculationInput, divisionResult);
+        const calculatedConfidence = calculateConfidenceLevel(calculationInput);
+
         setSummaryPayload(payload);
+        setCalculationInputForDisplay(calculationInput);
+        setConfidenceLevel(calculatedConfidence);
         setIsLoading(false);
       }).catch(e => {
         console.error("Error dynamically importing states utility:", e);
@@ -412,6 +450,403 @@ export default function ResultsPage() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* --- Overall Financial Summary Cards --- */}
+        {summaryPayload && propertyDivisionResult && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold mb-6 text-gray-700">Overall Financial Summary</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Spouse 1 Net Value */}
+              <Card>
+              <CardHeader>
+                <CardTitle className="text-lg text-blue-700">{summaryPayload.caseInfo.spouse1FullName || 'Spouse 1'}'s Total Net Value</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(propertyDivisionResult.totalSpouse1Value)}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Spouse 2 Net Value */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg text-blue-700">{summaryPayload.caseInfo.spouse2FullName || 'Spouse 2'}'s Total Net Value</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(propertyDivisionResult.totalSpouse2Value)}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Total Marital Assets */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg text-gray-700">Total Marital Assets Value</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summaryPayload.summary.totalCommunityAssetsValue)}
+                </p>
+                <CardDescription className="text-xs">(Note: Represents total assets subject to division based on input)</CardDescription>
+              </CardContent>
+            </Card>
+
+            {/* Total Marital Debts */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg text-gray-700">Total Marital Debts Value</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summaryPayload.summary.totalCommunityDebtsValue)}
+                </p>
+                <CardDescription className="text-xs">(Note: Represents total debts subject to division based on input)</CardDescription>
+              </CardContent>
+            </Card>
+
+            {/* Net Marital Estate */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg text-gray-700">Net Marital Estate Value</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summaryPayload.summary.netCommunityEstateValue)}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Equalization Payment */}
+            {propertyDivisionResult.equalizationPayment && propertyDivisionResult.equalizationPayment > 0 && propertyDivisionResult.paymentFrom && (
+              <Card className="lg:col-span-1"> {/* Allow it to span if fewer than 3 items in last row for larger screens */}
+                <CardHeader>
+                  <CardTitle className="text-lg text-green-700">Equalization Payment</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xl font-semibold">
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(propertyDivisionResult.equalizationPayment)}
+                  </p>
+                  <p className="text-sm">
+                    From: {propertyDivisionResult.paymentFrom === 'spouse1' ? summaryPayload.caseInfo.spouse1FullName : summaryPayload.caseInfo.spouse2FullName}
+                  </p>
+                  <p className="text-sm">
+                    To: {propertyDivisionResult.paymentFrom === 'spouse1' ? summaryPayload.caseInfo.spouse2FullName : summaryPayload.caseInfo.spouse1FullName}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+        )}
+
+        {/* --- Visual Summary Charts --- */}
+        {summaryPayload && propertyDivisionResult && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold mb-6 text-gray-700">Visual Summary</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
+              {/* Marital Asset Division Pie Chart */}
+              {(() => {
+                const s1Name = summaryPayload.caseInfo.spouse1FullName || "Spouse 1";
+                const s2Name = summaryPayload.caseInfo.spouse2FullName || "Spouse 2";
+                let s1MaritalAssetTotal = 0;
+                let s2MaritalAssetTotal = 0;
+
+                summaryPayload.communityAssets.forEach(asset => {
+                  s1MaritalAssetTotal += asset.awardedToSpouse1 || 0;
+                  s2MaritalAssetTotal += asset.awardedToSpouse2 || 0;
+                });
+
+                const totalMaritalAssetsForChart = s1MaritalAssetTotal + s2MaritalAssetTotal;
+
+                if (totalMaritalAssetsForChart === 0) {
+                  return (
+                    <Card>
+                      <CardHeader><CardTitle className="text-xl text-gray-600">Marital Asset Division</CardTitle></CardHeader>
+                      <CardContent><p className="text-sm text-gray-500">No marital assets to visualize.</p></CardContent>
+                    </Card>
+                  );
+                }
+
+                const pieData = [
+                  { name: s1Name, value: s1MaritalAssetTotal },
+                  { name: s2Name, value: s2MaritalAssetTotal },
+                ];
+                const COLORS = ['#0088FE', '#00C49F']; // Blue, Green
+
+                return (
+                  <Card>
+                    <CardHeader><CardTitle className="text-xl text-gray-600">Marital Asset Division</CardTitle></CardHeader>
+                    <CardContent className="h-[350px] md:h-[400px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                            nameKey="name"
+                          >
+                            {pieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Net Worth Comparison Bar Chart */}
+              {(() => {
+                const s1Name = summaryPayload.caseInfo.spouse1FullName || "Spouse 1";
+                const s2Name = summaryPayload.caseInfo.spouse2FullName || "Spouse 2";
+                const netWorthData = [
+                  { name: s1Name, "Total Net Value": propertyDivisionResult.totalSpouse1Value },
+                  { name: s2Name, "Total Net Value": propertyDivisionResult.totalSpouse2Value },
+                ];
+                 const COLORS = ['#FFBB28', '#FF8042']; // Yellow, Orange
+
+                return (
+                  <Card>
+                    <CardHeader><CardTitle className="text-xl text-gray-600">Overall Net Value Comparison</CardTitle></CardHeader>
+                    <CardContent className="h-[350px] md:h-[400px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={netWorthData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis tickFormatter={(value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(value)} />
+                          <Tooltip formatter={(value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)} />
+                          <Legend />
+                          <Bar dataKey="Total Net Value">
+                             {netWorthData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* --- Detailed Breakdown Tables --- */}
+        {summaryPayload && propertyDivisionResult && (
+          <div className="space-y-8 mb-8"> {/* Added mb-8 for spacing */}
+            <div>
+              <h2 className="text-2xl font-semibold mb-6 text-gray-700">Detailed Asset and Debt Division</h2> {/* mb-6 for consistency */}
+            </div>
+
+            {/* Helper function for table cell formatting */}
+            {(() => {
+              const formatCurrency = (value: number | undefined) =>
+                value !== undefined ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value) : 'N/A';
+
+              const s1Name = summaryPayload.caseInfo.spouse1FullName || "Spouse 1";
+              const s2Name = summaryPayload.caseInfo.spouse2FullName || "Spouse 2";
+
+              const renderTable = (title: string, headers: string[], data: any[], columns: (keyof any | ((item: any) => string | number))[], noDataMsg: string) => {
+                if (!data || data.length === 0) {
+                  return (
+                    <Card className="mb-6">
+                      <CardHeader><CardTitle className="text-xl text-gray-600">{title}</CardTitle></CardHeader>
+                      <CardContent><p className="text-sm text-gray-500">{noDataMsg}</p></CardContent>
+                    </Card>
+                  );
+                }
+                return (
+                  <Card className="mb-6">
+                    <CardHeader><CardTitle className="text-xl text-gray-600">{title}</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              {headers.map(header => (
+                                <th key={header} scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  {header}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {data.map((item, index) => (
+                              <tr key={index} className={index % 2 === 0 ? undefined : "bg-gray-50"}>
+                                {columns.map((col, colIndex) => (
+                                  <td key={colIndex} className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                    {typeof col === 'function' ? col(item) : (typeof item[col] === 'number' && (String(col).toLowerCase().includes('value') || String(col).toLowerCase().includes('share') || String(col).toLowerCase().includes('balance') || String(col).toLowerCase().includes('responsibility')) ? formatCurrency(item[col]) : (item[col] ?? 'N/A'))}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              };
+
+              return (
+                <>
+                  {/* Marital Assets Table */}
+                  {renderTable(
+                    "Division of Marital Assets",
+                    ["Description", "Type", "Total Value", `Awarded to ${s1Name}`, `Awarded to ${s2Name}`, "Reasoning"],
+                    summaryPayload.communityAssets,
+                    ['description', 'type', 'totalValue', 'awardedToSpouse1', 'awardedToSpouse2', 'reasoning'],
+                    "No marital assets to display."
+                  )}
+
+                  {/* Spouse 1 Separate Assets Table */}
+                  {renderTable(
+                    `${s1Name}'s Separate Assets`,
+                    ["Description", "Type", "Value", "Reasoning"],
+                    summaryPayload.spouse1SeparateAssets,
+                    ['description', 'type', 'value', 'reasoning'],
+                    `No separate assets listed for ${s1Name}.`
+                  )}
+
+                  {/* Spouse 2 Separate Assets Table */}
+                  {renderTable(
+                    `${s2Name}'s Separate Assets`,
+                    ["Description", "Type", "Value", "Reasoning"],
+                    summaryPayload.spouse2SeparateAssets,
+                    ['description', 'type', 'value', 'reasoning'],
+                    `No separate assets listed for ${s2Name}.`
+                  )}
+
+                  {/* Marital Debts Table */}
+                  {renderTable(
+                    "Allocation of Marital Debts",
+                    ["Description", "Creditor", "Type", "Total Balance", `Resp. for ${s1Name}`, `Resp. for ${s2Name}`, "Reasoning"],
+                    summaryPayload.communityDebts,
+                    ['description', 'creditor', 'type', 'totalBalance', 'responsibilitySpouse1', 'responsibilitySpouse2', 'reasoning'],
+                    "No marital debts to display."
+                  )}
+
+                  {/* Spouse 1 Separate Debts Table */}
+                  {renderTable(
+                    `${s1Name}'s Separate Debts`,
+                    ["Description", "Creditor", "Type", "Balance", "Reasoning"],
+                    summaryPayload.spouse1SeparateDebts,
+                    ['description', 'creditor', 'type', 'balance', 'reasoning'],
+                    `No separate debts listed for ${s1Name}.`
+                  )}
+
+                  {/* Spouse 2 Separate Debts Table */}
+                  {renderTable(
+                    `${s2Name}'s Separate Debts`,
+                    ["Description", "Creditor", "Type", "Balance", "Reasoning"],
+                    summaryPayload.spouse2SeparateDebts,
+                    ['description', 'creditor', 'type', 'balance', 'reasoning'],
+                    `No separate debts listed for ${s2Name}.`
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* --- Calculation Confidence Level --- */}
+        {confidenceLevel !== null && (
+            <Card className="mb-8">
+                <CardHeader>
+                    <CardTitle className="text-xl text-gray-800">Calculation Confidence</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    <p className="text-3xl font-bold text-center text-blue-600">{confidenceLevel}%</p>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                        This score reflects an estimate of the calculation's straightforwardness based on the data provided.
+                        Factors like complex assets (e.g., business interests), significant special circumstances (e.g., domestic violence,
+                        wasting of assets), or limited asset/debt information can lower this score. It is for informational
+                        purposes only and not a legal assessment of certainty or a substitute for professional legal advice.
+                    </p>
+                </CardContent>
+            </Card>
+        )}
+
+        {/* --- State-Specific Explanation & Legal Context --- */}
+        {summaryPayload && calculationInputForDisplay && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-xl text-gray-800">
+                Understanding Your Results in {getStateInfo(summaryPayload.caseInfo.jurisdiction as USState)?.name || summaryPayload.caseInfo.jurisdiction}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-gray-700">
+              <p>
+                The division of property in your jurisdiction, <strong>{getStateInfo(summaryPayload.caseInfo.jurisdiction as USState)?.name || summaryPayload.caseInfo.jurisdiction}</strong>,
+                follows an <strong>{isCommunityPropertyState(summaryPayload.caseInfo.jurisdiction as USState) ? 'Community Property' : 'Equitable Distribution'}</strong> model.
+              </p>
+
+              {!isCommunityPropertyState(summaryPayload.caseInfo.jurisdiction as USState) && getStateInfo(summaryPayload.caseInfo.jurisdiction as USState)?.equitableFactors && (
+                <div>
+                  <h4 className="font-semibold mt-3 mb-1">Key Factors Considered in Equitable Distribution:</h4>
+                  <ul className="list-disc list-inside space-y-1 pl-2 text-xs">
+                    {getStateInfo(summaryPayload.caseInfo.jurisdiction as USState)?.equitableFactors?.map((factor, index) => (
+                      <li key={index}>{factor}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {summaryPayload.caseInfo.jurisdiction === 'PA' && calculationInputForDisplay.specialFactors && (
+                (() => {
+                  const paFactorsUsed = Object.entries(calculationInputForDisplay.specialFactors)
+                    .filter(([key, value]) =>
+                      key.startsWith('priorMarriage') || key.startsWith('stationS') || key.startsWith('vocationalSkillsS') ||
+                      key.startsWith('estateS') || key.startsWith('needsS') || key.startsWith('contributionToEducation') ||
+                      key.startsWith('opportunityFuture') || key.startsWith('sourcesOfIncome') || key.startsWith('standardOfLiving') ||
+                      key.startsWith('economicCircumstancesAtDivorce') || key.startsWith('expenseOfSaleAssets')
+                    )
+                    .some(([key, value]) => value !== undefined && value !== false && value !== ''); // Check if any PA factor has a meaningful value
+
+                  if (paFactorsUsed) {
+                    return (
+                      <p className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-xs">
+                        <strong>Pennsylvania Specific Considerations:</strong> Additional factors specific to Pennsylvania, such as prior marriages,
+                        contributions to education/training, future earning opportunities, and specific needs of the parties, were
+                        considered in this calculation based on the information you provided. These factors can influence the
+                        equitable division of marital property.
+                      </p>
+                    );
+                  }
+                  return null;
+                })()
+              )}
+
+              {summaryPayload.disclaimers && summaryPayload.disclaimers.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="font-semibold mb-2 text-red-700">Important Disclaimers:</h4>
+                  <ul className="list-disc list-inside space-y-1 pl-2 text-xs">
+                    {summaryPayload.disclaimers.map((disclaimer, index) => (
+                      <li key={index}>{disclaimer}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="mt-12 text-center">
+          <Button onClick={() => router.push('/calculator')} variant="outline" size="lg">
+            Start New Calculation
+          </Button>
+        </div>
 
         {/* Optional: Display raw payload for debugging during development */}
         {process.env.NODE_ENV === 'development' && (

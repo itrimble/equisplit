@@ -349,6 +349,129 @@ function calculateEquityFactor(factors: EquitableDistributionFactors): number {
   if (factors.wastingOfAssets) {
     score += 0.05; // Non-wasting spouse gets more
   }
+
+  // Pennsylvania-specific factors adjustment
+  // Check if any PA-specific factors are present to apply PA logic.
+  // Using a few key PA fields to trigger this block.
+  const isPennsylvaniaContext = factors.priorMarriageSpouse1 !== undefined ||
+                               factors.stationSpouse1 !== undefined ||
+                               factors.vocationalSkillsSpouse1 !== undefined ||
+                               factors.estateSpouse1 !== undefined ||
+                               factors.needsSpouse1 !== undefined ||
+                               factors.contributionToEducationTrainingSpouse1 !== undefined ||
+                               factors.opportunityFutureAcquisitionsSpouse1 !== undefined ||
+                               factors.sourcesOfIncomeDetailsSpouse1 !== undefined ||
+                               factors.standardOfLiving !== undefined ||
+                               factors.economicCircumstancesAtDivorceSpouse1 !== undefined ||
+                               factors.expenseOfSaleAssets !== undefined;
+
+  if (isPennsylvaniaContext) {
+    // Prior Marriages
+    if (factors.priorMarriageSpouse1 && !factors.priorMarriageSpouse2) {
+      score += 0.01; // Spouse 1 has prior marriage, may slightly favor Spouse 2
+    } else if (factors.priorMarriageSpouse2 && !factors.priorMarriageSpouse1) {
+      score -= 0.01; // Spouse 2 has prior marriage, may slightly favor Spouse 1
+    }
+
+    // Contribution to Education/Training
+    if (factors.contributionToEducationTrainingSpouse1 && !factors.contributionToEducationTrainingSpouse2) {
+      score += 0.02; // Spouse 1 contributed to Spouse 2's education
+    } else if (factors.contributionToEducationTrainingSpouse2 && !factors.contributionToEducationTrainingSpouse1) {
+      score -= 0.02; // Spouse 2 contributed to Spouse 1's education
+    }
+
+    // Opportunity for Future Acquisitions (presence implies advantage)
+    const s1HasOpp = factors.opportunityFutureAcquisitionsSpouse1 && factors.opportunityFutureAcquisitionsSpouse1.length > 0;
+    const s2HasOpp = factors.opportunityFutureAcquisitionsSpouse2 && factors.opportunityFutureAcquisitionsSpouse2.length > 0;
+    if (s1HasOpp && !s2HasOpp) {
+      score -= 0.01; // Spouse 1 has better defined future opportunities
+    } else if (s2HasOpp && !s1HasOpp) {
+      score += 0.01; // Spouse 2 has better defined future opportunities
+    }
+
+    // Needs of Spouses (presence implies greater need)
+    const s1HasNeeds = factors.needsSpouse1 && factors.needsSpouse1.length > 0;
+    const s2HasNeeds = factors.needsSpouse2 && factors.needsSpouse2.length > 0;
+    if (s1HasNeeds && !s2HasNeeds) {
+      score += 0.02; // Spouse 1 has greater needs
+    } else if (s2HasNeeds && !s1HasNeeds) {
+      score -= 0.02; // Spouse 2 has greater needs
+    }
+
+    // Standard of Living (presence implies it's a factor, heuristic: person detailing it might be more concerned)
+    if (factors.standardOfLiving && factors.standardOfLiving.length > 5) { // Check for some minimal content
+      // This is a weak heuristic. A more sophisticated approach might be needed.
+      // For now, a very small adjustment if standard of living is detailed.
+      // Assuming detailed by S1, may indicate S1 anticipates a greater drop or wishes to preserve it.
+      // score += 0.01; // Small nudge, potentially benefits spouse more concerned with maintaining it.
+      // Decided to keep this neutral for now as it's too subjective without more context.
+    }
+
+    // Economic Circumstances at Divorce (presence implies notable circumstances for that spouse)
+    const s1EcoCirc = factors.economicCircumstancesAtDivorceSpouse1 && factors.economicCircumstancesAtDivorceSpouse1.length > 0;
+    const s2EcoCirc = factors.economicCircumstancesAtDivorceSpouse2 && factors.economicCircumstancesAtDivorceSpouse2.length > 0;
+    if (s1EcoCirc && !s2EcoCirc) {
+      score += 0.02; // Spouse 1 has specific economic circumstances highlighted (implies disadvantage)
+    } else if (s2EcoCirc && !s1EcoCirc) {
+      score -= 0.02; // Spouse 2 has specific economic circumstances highlighted
+    }
+
+    // Value of Separate Estates
+    if (typeof factors.estateSpouse1 === 'number' && typeof factors.estateSpouse2 === 'number') {
+      if (factors.estateSpouse1 > factors.estateSpouse2 * 2) { // S1 estate significantly larger
+        score -= 0.02;
+      } else if (factors.estateSpouse2 > factors.estateSpouse1 * 2) { // S2 estate significantly larger
+        score += 0.02;
+      }
+    } else if (typeof factors.estateSpouse1 === 'number' && factors.estateSpouse1 > 0 && factors.estateSpouse2 === undefined) {
+        score -= 0.01; // S1 has separate estate, S2 doesn't (or not specified)
+    } else if (typeof factors.estateSpouse2 === 'number' && factors.estateSpouse2 > 0 && factors.estateSpouse1 === undefined) {
+        score += 0.01; // S2 has separate estate, S1 doesn't (or not specified)
+    }
+
+
+    // Expense of Selling Assets (if significant, may push towards more balanced distribution)
+    if (typeof factors.expenseOfSaleAssets === 'number' && factors.expenseOfSaleAssets > 0) {
+      // If expenses are high, and score is skewed, nudge it slightly towards center.
+      // Threshold for "high" expense could be absolute or relative to total assets.
+      // For now, any positive value triggers a small adjustment.
+      if (score > 0.55) {
+        score -= 0.01;
+      } else if (score < 0.45) {
+        score += 0.01;
+      }
+    }
+
+    // Station in Life (presence of details implies complexity or dependence for that spouse)
+    const s1Station = factors.stationSpouse1 && factors.stationSpouse1.length > 0;
+    const s2Station = factors.stationSpouse2 && factors.stationSpouse2.length > 0;
+    if (s1Station && !s2Station) {
+      score += 0.01; // S1's station described, S2's not - implies S1's might be more of a factor.
+    } else if (s2Station && !s1Station) {
+      score -= 0.01;
+    }
+
+    // Vocational Skills (presence of details implies specific skills or lack thereof being highlighted)
+    const s1VocSkills = factors.vocationalSkillsSpouse1 && factors.vocationalSkillsSpouse1.length > 0;
+    const s2VocSkills = factors.vocationalSkillsSpouse2 && factors.vocationalSkillsSpouse2.length > 0;
+    if (s1VocSkills && !s2VocSkills) { // S1 details skills, S2 does not.
+        // This is highly heuristic. Does detailing skills mean good skills or bad skills?
+        // Assuming it's to highlight a point relevant to their case (e.g. S1 has outdated skills).
+        // score += 0.01; // Tentatively give slight benefit to S1 if they detailed this.
+        // Decided to keep this neutral for now as it's too subjective.
+    } else if (s2VocSkills && !s1VocSkills) {
+        // score -= 0.01;
+    }
+     // Sources of Income (presence of details implies other sources for that spouse)
+    const s1SrcInc = factors.sourcesOfIncomeDetailsSpouse1 && factors.sourcesOfIncomeDetailsSpouse1.length > 0;
+    const s2SrcInc = factors.sourcesOfIncomeDetailsSpouse2 && factors.sourcesOfIncomeDetailsSpouse2.length > 0;
+    if (s1SrcInc && !s2SrcInc) { // S1 has other income sources detailed
+        score -= 0.01;
+    } else if (s2SrcInc && !s1SrcInc) { // S2 has other income sources detailed
+        score += 0.01;
+    }
+
+  }
   
   // Ensure factor stays within reasonable bounds
   return Math.max(0.3, Math.min(0.7, score));
