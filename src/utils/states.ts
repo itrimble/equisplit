@@ -9,6 +9,7 @@ export const COMMUNITY_PROPERTY_STATES: USState[] = [
 export const STATE_INFO: Record<USState, {
   name: string;
   propertyRegime: PropertyRegime;
+  isQCPState?: boolean; // <-- Add this line
   equitableFactors?: string[];
   specialRules?: string[];
 }> = {
@@ -17,12 +18,14 @@ export const STATE_INFO: Record<USState, {
   'AZ': { 
     name: 'Arizona', 
     propertyRegime: 'community',
+    isQCPState: true, // <-- Add this line
     specialRules: ['Quasi-community property rules apply to out-of-state assets']
   },
   'AR': { name: 'Arkansas', propertyRegime: 'equitable' },
   'CA': { 
     name: 'California', 
     propertyRegime: 'community',
+    isQCPState: true, // <-- Add this line
     specialRules: [
       'Income from separate property remains separate',
       'Putative spouse doctrine applies',
@@ -38,6 +41,7 @@ export const STATE_INFO: Record<USState, {
   'ID': { 
     name: 'Idaho', 
     propertyRegime: 'community',
+    isQCPState: true, // <-- Add this line
     specialRules: ['Community property with right of survivorship available']
   },
   'IL': { name: 'Illinois', propertyRegime: 'equitable' },
@@ -117,6 +121,7 @@ export const STATE_INFO: Record<USState, {
   'WA': { 
     name: 'Washington', 
     propertyRegime: 'community',
+    isQCPState: true, // <-- Add this line
     specialRules: ['Allows for unequal division based on economic misconduct']
   },
   'WV': { name: 'West Virginia', propertyRegime: 'equitable' },
