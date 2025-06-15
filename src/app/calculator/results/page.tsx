@@ -10,11 +10,15 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 import { CalculationInput, PropertyDivision, PersonalInfoFormData, PropertyDebtSummaryPayload, Asset, Debt, StepFormData, MarriageInfo, USState, EquitableDistributionFactors } from '@/types';
-import { calculatePropertyDivision, calculateConfidenceLevel } from '@/utils/calculations'; // Added calculateConfidenceLevel
+import { calculatePropertyDivision, calculateConfidenceLevel } from '@/utils/calculations';
 import { generatePropertyDebtSummaryPayload } from '@/utils/documentPayloadTransformer';
+import { prepareMsaTemplateData } from '@/utils/msaDataTransformer'; // Added MSA data transformer
 import { getStateInfo, isCommunityPropertyState } from '@/utils/states';
 import { useMultiStepForm } from '@/hooks/useMultiStepForm';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'; // Added Recharts imports
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
+import { saveAs } from 'file-saver';
 
 const STORAGE_KEY = 'equisplit-calculator-v1';
 
@@ -25,7 +29,8 @@ export default function ResultsPage() {
   const [summaryPayload, setSummaryPayload] = useState<PropertyDebtSummaryPayload | null>(null);
   const [propertyDivisionResult, setPropertyDivisionResult] = useState<PropertyDivision | null>(null);
   const [calculationInputForDisplay, setCalculationInputForDisplay] = useState<CalculationInput | null>(null);
-  const [confidenceLevel, setConfidenceLevel] = useState<number | null>(null); // Added state for confidence level
+  const [confidenceLevel, setConfidenceLevel] = useState<number | null>(null);
+  const [isGeneratingMsa, setIsGeneratingMsa] = useState(false); // State for MSA generation loading
 
   useEffect(() => {
     setIsLoading(true);
@@ -179,6 +184,53 @@ export default function ResultsPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
+
+  const handleGenerateMsaDocx = async () => {
+    if (!calculationInputForDisplay || !propertyDivisionResult || !summaryPayload) {
+      alert("Data not ready for MSA generation. Please wait or try refreshing.");
+      return;
+    }
+    setIsGeneratingMsa(true);
+    try {
+      const msaData = prepareMsaTemplateData(
+        calculationInputForDisplay,
+        propertyDivisionResult,
+        summaryPayload
+      );
+
+      const response = await fetch('/templates/msa_template.docx');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch MSA template. Status: ${response.status}. Ensure msa_template.docx is in public/templates/`);
+      }
+      const templateArrayBuffer = await response.arrayBuffer();
+
+      const zip = new PizZip(templateArrayBuffer);
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        // To handle nullish values gracefully in loops, you can use a custom parser or ensure data is clean.
+        // For example, if a loop like {{#marital_assets_s1}} has an undefined or null marital_assets_s1,
+        // docxtemplater might throw an error. Ensure such arrays are at least empty [] in msaData.
+        // The prepareMsaTemplateData function should already ensure this.
+        nullGetter: () => "", // Return empty string for null/undefined values in simple placeholders
+      });
+
+      doc.setData(msaData);
+      doc.render();
+
+      const outputBlob = doc.getZip().generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      saveAs(outputBlob, 'EquiSplit_MSA_Draft.docx');
+
+    } catch (error: any) {
+      console.error("Error generating MSA DOCX:", error);
+      alert(`Failed to generate MSA document: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsGeneratingMsa(false);
+    }
+  };
 
   const handleDownloadPdf = () => {
     if (!summaryPayload) {
@@ -448,9 +500,22 @@ export default function ResultsPage() {
                 </p>
               )}
             </div>
-            <Button onClick={handleDownloadPdf} size="lg">
-              Download PDF Summary (Proof of Concept)
-            </Button>
+            <div className="flex flex-wrap gap-4">
+              <Button onClick={handleDownloadPdf} size="lg" disabled={isGeneratingMsa}>
+                Download PDF Summary
+              </Button>
+              <Button
+                onClick={handleGenerateMsaDocx}
+                size="lg"
+                variant="outline"
+                disabled={isGeneratingMsa || !calculationInputForDisplay || !propertyDivisionResult || !summaryPayload}
+              >
+                {isGeneratingMsa ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Generate MSA Draft (DOCX)
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
